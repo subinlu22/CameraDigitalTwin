@@ -1,0 +1,39 @@
+# ===== Unity 자동 생성 폴더 (컴퓨터마다 새로 만들어지는 캐시) =====
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Mm]emoryCaptures/
+
+# ===== 빌드 결과물 =====
+*.apk
+*.aab
+*.unitypackage
+
+# ===== Visual Studio / Rider 등 IDE 생성 파일 =====
+/.vs/
+/.vscode/
+/.idea/
+*.csproj
+*.sln
+*.suo
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+
+# ===== OS 잡파일 =====
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ===== 주의: *.meta 는 절대 넣지 말 것 (임포트 설정이 들어있음) =====
+*.slnx
