@@ -64,4 +64,13 @@ public class RobotJointTester : MonoBehaviour
             joints[i].xDrive = drive;
         }
     }
+
+    // [각도 초기화] 컴포넌트 오른쪽 ⋮ 메뉴에 "각도 0으로 초기화" 항목을 만들어준다
+    [ContextMenu("각도 0으로 초기화")]
+    void ResetAngles()
+    {
+        if (anglesDeg == null) return;           // 슬라이더가 아직 없으면 아무것도 안 함
+        for (int i = 0; i < anglesDeg.Length; i++)
+            anglesDeg[i] = 0f;                   // 모든 슬라이더를 0도로
+    }
 }
