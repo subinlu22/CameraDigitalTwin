@@ -4,8 +4,10 @@
 
 🔗 [Portfolio](https://subinlu22.github.io)
 
-![Unity 장면](docs/images/unity-scene.png)
-*Unity 에디터 Scene 뷰 — 벨트, 카메라 거치대, 링라이트, 뚜껑 9종*
+<p align="center">
+  <img src="docs/images/unity-scene.png" alt="Unity 장면"><br>
+  <sub>Unity 에디터 Scene 뷰 — 벨트, 카메라 거치대, 링라이트, 뚜껑 9종</sub>
+</p>
 
 ---
 
@@ -48,11 +50,15 @@
 | 로봇 | URDF Importer (`Packages` 폴더에 직접 포함), ArticulationBody |
 | 통신 | UDP, 포트 5053 |
 
-![모델 단독](docs/images/model.png)
-*직접 모델링한 장비 (뚜껑 9종: 색 3 × 숫자 3)*
+<p align="center">
+  <img src="docs/images/model.png" alt="모델 단독" width="400"><br>
+  <sub>직접 모델링한 장비 (뚜껑 9종: 색 3 × 숫자 3)</sub>
+</p>
 
-![실제 장비](docs/images/real-setup.jpg)
-*대응하는 실제 장비*
+<p align="center">
+  <img src="docs/images/real-setup.jpg" alt="실제 장비" width="460"><br>
+  <sub>대응하는 실제 장비</sub>
+</p>
 
 ## 시스템 구조
 
@@ -76,8 +82,10 @@
 | `DroopRobotPose` | 로봇팔 중력·저항·충돌 설정 |
 | `RobotJointTester` | 인스펙터 슬라이더로 6개 관절 각도 제어 |
 
-![대시보드](docs/images/dashboard.png)
-*대시보드 UI (수신 대기 상태)*
+<p align="center">
+  <img src="docs/images/dashboard.png" alt="대시보드"><br>
+  <sub>대시보드 UI (수신 대기 상태)</sub>
+</p>
 
 ## UDP 메시지 (포트 5053)
 
@@ -86,27 +94,34 @@
 | `inspection` | 검사 결과 1건 수신 → 같은 색·숫자의 뚜껑 생성, 통계 갱신, 테두리 효과 |
 | `criterion` | 검사 기준 변경 알림 → 양품/불량 집계를 0부터 다시 시작 (총 검사·색상별·숫자별은 유지) |
 
-> 로봇팔·아두이노 메시지는 `type`만 추가하면 같은 구조로 확장됩니다.
-
 ## 설계 결정과 근거
 
 | 결정 | 근거 |
 |---|---|
-| 벨트 위 이동은 물리가 아니라 위치를 직접 이동 | 매번 똑같이 움직여 현실 장비와 맞추기 쉬움. 물리는 낙하 연출에만 사용 |
-| 수신 스레드와 처리 분리 (큐 사용) | Unity 오브젝트는 메인 스레드에서만 접근 가능 |
-| SpawnPoint / EndPoint를 FBX 밖에 둠 | FBX를 다시 내보내도 연동이 깨지지 않음 |
-| URDF Importer를 `Packages` 폴더에 직접 복사 | Unity에서 git 주소 설치가 실패했고, 프로젝트와 함께 커밋되어 다른 PC에서도 동작 |
+| 벨트 위 이동은 물리가 아니라 위치를 직접 이동 | 매번 똑같이 움직여 현실 장비와 맞추기 쉬움. 결과가 조금 달라도 되는 낙하 연출에만 물리 사용 |
+| 수신 스레드와 처리 분리 (큐 사용) | Unity 오브젝트는 메인 스레드에서만 다룰 수 있음 |
+| SpawnPoint / EndPoint를 FBX 밖에 둠, 견본 뚜껑은 이름으로 연결 | 모델을 다시 내보내도 연동이 깨지지 않음 |
+| 검사 기준이 바뀌면 양품/불량만 0부터 다시 집계 | 기준(색)마다 양품의 정의가 달라 섞이면 의미가 없음. 총 검사·색상별·숫자별은 유지 |
+| FBX Scale Factor 2.2 | 실측 비율보다 화면에서 자연스러운 비율을 우선 |
+| URDF Importer를 `Packages` 폴더에 직접 포함 | 프로젝트와 함께 커밋되어 다른 PC에서도 그대로 동작 |
+
+## 시행착오 — 시도했다가 바꾼 것
+
+| 시도 | 문제 | 바꾼 방식 |
+|---|---|---|
+| 벨트 위 뚜껑을 물리로 이동 | 마찰·충돌 결과가 매번 달라 실제 장비와 동기화가 안 됨 | 위치를 직접 옮겨 등속 이동, 낙하에만 물리 사용 |
+| URDF Importer를 git 주소로 설치 | `fatal: not in a git directory` — Unity가 PC의 git을 인식하지 못함 (터미널에서는 정상) | GitHub에서 ZIP으로 받아 패키지 폴더를 `Packages`에 직접 복사 |
+| 로봇팔을 충돌 포함 원본 URDF로 가져오기 | 에러 없이 Mesh Filter만 Missing. 충돌용 STL을 `_col` 이름으로 분리하거나 폴더를 새로 만들어도 동일 | `<collision>` 블록 19개만 뺀 visual 전용 URDF로 가져오기 (링크·관절·회전 범위·질량은 유지), 성공 직후 프리팹으로 저장 |
 
 ## 트러블슈팅
 
 | 문제 | 원인 | 해결 |
 |---|---|---|
-| URDF Importer 설치 실패 (`fatal: not in a git directory`) | Unity가 PC의 git을 인식하지 못함 | 패키지 폴더를 `Packages`에 직접 복사 |
-| 로봇팔을 충돌 포함 URDF로 가져오면 Mesh Filter가 Missing | 원인 미확정 (충돌용 STL 복사, 폴더 재생성 모두 실패) | `<collision>` 블록을 뺀 visual 전용 URDF로 우회 |
-| 같은 URDF를 다시 가져오면 기존 로봇까지 Missing | 같은 STL이 프로젝트에 중복 | 가져온 직후 프리팹으로 저장, 다시 가져와야 하면 폴더를 전부 지우고 시작 |
-| 로봇팔이 힘 풀린 경첩처럼 처지고 바닥을 뚫음 | ArticulationBody의 Stiffness/Damping이 0, 충돌 없음 | `DroopRobotPose`로 중력·저항·MeshCollider를 코드에서 설정 |
-| 가져올 때 붙는 기본 Controller가 매 프레임 예외 발생 | 구 Input 클래스 사용 | 기본 Controller 컴포넌트 제거 |
-| 플레이 중 설정이 종료 시 되돌아감 | 에디터의 플레이 모드 변경은 저장되지 않음 | `Awake()`에서 코드로 직접 설정 |
+| UDP로 받은 결과로 뚜껑을 만들면 에러가 나거나 반영되지 않음 | 수신 루프는 별도 스레드인데 Unity 오브젝트는 메인 스레드에서만 접근 가능 | 수신 스레드는 메시지를 큐에 넣기만 하고, `Update()`에서 꺼내 뚜껑 생성 |
+| 뚜껑이 벨트 위에서 매번 다르게 움직여 실제 장비와 타이밍이 어긋남 | 물리(Rigidbody) 마찰·충돌 결과가 매 실행 달라짐 | 벨트 위는 위치를 직접 옮겨 등속 이동, EndPoint 도착 후에만 물리를 켜서 낙하 |
+| FBX를 다시 내보내면 생성 위치와 견본 연결이 끊김 | 기준점이 FBX 내부 오브젝트에 묶여 있었음 | SpawnPoint / EndPoint를 FBX 밖 빈 오브젝트로 분리, 견본은 이름(r1, b2 …)으로 연결 |
+| 견본 뚜껑의 숫자가 실제와 다름 (r1이 실제로는 숫자 3) | FBX의 뚜껑 이름이 1↔3 뒤바뀌어 export됨 | Unity Hierarchy에서 이름 정정 (Maya 원본은 다음 재export 때 반영) |
+| 로봇팔이 힘 풀린 경첩처럼 처지고 바닥을 뚫음 | ArticulationBody의 Stiffness/Damping이 0이고 충돌 모양이 없음 | `DroopRobotPose`: 관절 끝쪽 무게 비율로 저항을 자동 계산(손목은 0.05로 별도 지정), 보이는 메시마다 MeshCollider(convex) 자동 부착 |
 
 ## 실행 방법
 
