@@ -301,6 +301,26 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 49.997, y: -30.768, z: -0.588}
+--- !u!1 &247797414 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 3225036611013508559, guid: d8465ec3c7e636749b211f2976394954, type: 3}
+  m_PrefabInstance: {fileID: 1146633464}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &247797416
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 247797414}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7ee101b1de4d3f24da3efba7a1c17956, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BeltScroll
+  beltMover: {fileID: 839662316}
+  tileLength: 0.05
+  reverse: 0
 --- !u!1 &615940330
 GameObject:
   m_ObjectHideFlags: 0
@@ -563,7 +583,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BeltMover
   isRunning: 1
-  speed: 0.05
+  speed: 0.03
   localDirection: {x: 1, y: 0, z: 0}
 --- !u!65 &839662317
 BoxCollider:
@@ -981,7 +1001,7 @@ PrefabInstance:
     - target: {fileID: -8650718221778867621, guid: d8465ec3c7e636749b211f2976394954, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
-      objectReference: {fileID: 2100000, guid: 222c13038b9ccc541ae33ab9e78a20b5, type: 2}
+      objectReference: {fileID: 2100000, guid: 06c865e37f7cad644b20d53b986e23f3, type: 2}
     - target: {fileID: -7942351566488325080, guid: d8465ec3c7e636749b211f2976394954, type: 3}
       propertyPath: m_StaticEditorFlags
       value: 64
@@ -1078,6 +1098,10 @@ PrefabInstance:
       propertyPath: m_LocalPosition.z
       value: -0
       objectReference: {fileID: 0}
+    - target: {fileID: -149546551517956605, guid: d8465ec3c7e636749b211f2976394954, type: 3}
+      propertyPath: m_Mesh
+      value: 
+      objectReference: {fileID: 4300000, guid: 4910ec37cc055af45bf82dccce338f47, type: 2}
     - target: {fileID: 389065307495035938, guid: d8465ec3c7e636749b211f2976394954, type: 3}
       propertyPath: m_StaticEditorFlags
       value: 64
@@ -1197,6 +1221,9 @@ PrefabInstance:
       insertIndex: -1
       addedObject: {fileID: 839662315}
     m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 3225036611013508559, guid: d8465ec3c7e636749b211f2976394954, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 247797416}
     - targetCorrespondingSourceObject: {fileID: 6995706929499373302, guid: d8465ec3c7e636749b211f2976394954, type: 3}
       insertIndex: -1
       addedObject: {fileID: 867749036}
