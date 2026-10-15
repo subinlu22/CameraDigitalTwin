@@ -583,7 +583,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BeltMover
   isRunning: 1
-  speed: 0.03
+  speed: 0.015
   localDirection: {x: 1, y: 0, z: 0}
 --- !u!65 &839662317
 BoxCollider:
@@ -932,7 +932,7 @@ MonoBehaviour:
   lidTemplatesParent: {fileID: 893114035}
   spawnPoint: {fileID: 1551371425}
   endPoint: {fileID: 198886860}
-  beltSpeed: 0.03
+  beltSpeed: 0.015
   dashboard: {fileID: 0}
 --- !u!1001 &1146633464
 PrefabInstance:
@@ -1020,7 +1020,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -6083130118879843619, guid: d8465ec3c7e636749b211f2976394954, type: 3}
       propertyPath: m_Name
-      value: r1
+      value: r3
       objectReference: {fileID: 0}
     - target: {fileID: -6083130118879843619, guid: d8465ec3c7e636749b211f2976394954, type: 3}
       propertyPath: m_StaticEditorFlags
@@ -1036,7 +1036,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -5216928910743719724, guid: d8465ec3c7e636749b211f2976394954, type: 3}
       propertyPath: m_Name
-      value: w3
+      value: w1
       objectReference: {fileID: 0}
     - target: {fileID: -5216928910743719724, guid: d8465ec3c7e636749b211f2976394954, type: 3}
       propertyPath: m_StaticEditorFlags
@@ -1108,7 +1108,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 912672065596507494, guid: d8465ec3c7e636749b211f2976394954, type: 3}
       propertyPath: m_Name
-      value: w1
+      value: w3
       objectReference: {fileID: 0}
     - target: {fileID: 912672065596507494, guid: d8465ec3c7e636749b211f2976394954, type: 3}
       propertyPath: m_StaticEditorFlags
@@ -1128,7 +1128,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2106573506660575542, guid: d8465ec3c7e636749b211f2976394954, type: 3}
       propertyPath: m_Name
-      value: r3
+      value: r1
       objectReference: {fileID: 0}
     - target: {fileID: 2106573506660575542, guid: d8465ec3c7e636749b211f2976394954, type: 3}
       propertyPath: m_StaticEditorFlags
@@ -1180,7 +1180,7 @@ PrefabInstance:
       objectReference: {fileID: 2100000, guid: 222c13038b9ccc541ae33ab9e78a20b5, type: 2}
     - target: {fileID: 6995706929499373302, guid: d8465ec3c7e636749b211f2976394954, type: 3}
       propertyPath: m_Name
-      value: b3
+      value: b1
       objectReference: {fileID: 0}
     - target: {fileID: 6995706929499373302, guid: d8465ec3c7e636749b211f2976394954, type: 3}
       propertyPath: m_StaticEditorFlags
@@ -1192,7 +1192,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7660379001206514144, guid: d8465ec3c7e636749b211f2976394954, type: 3}
       propertyPath: m_Name
-      value: b1
+      value: b3
       objectReference: {fileID: 0}
     - target: {fileID: 7660379001206514144, guid: d8465ec3c7e636749b211f2976394954, type: 3}
       propertyPath: m_StaticEditorFlags
@@ -1750,7 +1750,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 5802589878357501201, guid: 4a0b4462613c39948b3164dcd032265d, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -3.942
+      value: -2.801
       objectReference: {fileID: 0}
     - target: {fileID: 5802589878357501201, guid: 4a0b4462613c39948b3164dcd032265d, type: 3}
       propertyPath: m_LocalPosition.y
