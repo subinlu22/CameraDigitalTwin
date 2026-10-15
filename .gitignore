@@ -40,3 +40,6 @@ desktop.ini
 
 # ===== MCP for Unity (에디터 전용 도구, 로컬 임베디드 패키지) =====
 /Packages/com.coplaydev.unity-mcp/
+
+# ===== 스튜디오 렌더 결과물 (Tools > 스튜디오 렌더) - 용량 커서 레포에 안 넣음 =====
+/Renders/
