@@ -37,3 +37,6 @@ desktop.ini
 
 # ===== 주의: *.meta 는 절대 넣지 말 것 (임포트 설정이 들어있음) =====
 *.slnx
+
+# ===== MCP for Unity (에디터 전용 도구, 로컬 임베디드 패키지) =====
+/Packages/com.coplaydev.unity-mcp/
