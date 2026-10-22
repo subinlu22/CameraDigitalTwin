@@ -3,15 +3,17 @@
 """
 리더암 허브 (SO-ARM101) — 리더암 6관절 각도를 읽어서 나눠주는 프로그램
 
-지금 하는 일: 리더암 서보 6개의 현재 위치(틱)를 30Hz로 읽어 각도(°)로 바꿔 출력
-나중에 붙일 일: 유니티로 UDP 보내기 → 학생 PC 여러 대로 보내기
+지금 하는 일: 리더암 서보 6개의 현재 위치(틱)를 30Hz로 읽어 각도(°)로 바꿔
+             출력하고, UDP로 유니티(기본 127.0.0.1:5060)에 보내기
+나중에 붙일 일: 학생 PC 여러 대로 보내기 (--udp를 여러 번 쓰면 지금도 가능)
 
 안전: 서보에 "읽기" 명령만 보냅니다. 쓰기(토크·목표 위치) 명령은 이 파일에 없어서
       로봇이 움직이지 않습니다.
 
 사용법
   python leader_hub.py --scan                       # 포트마다 서보 1~6이 응답하는지 확인
-  python leader_hub.py --port COM5                  # 30Hz로 읽어서 출력
+  python leader_hub.py --port COM5                  # 30Hz로 읽어서 출력 + UDP 5060으로 보내기
+  python leader_hub.py --port COM5 --no-udp         # 출력만
   python leader_hub.py --port COM5 --capture-zero   # 지금 자세("ㄱ"자)를 영점으로 저장
 
 각도 계산은 교수님 웹 시뮬레이터(assets/js/feetech-webserial.js)의 '원시 매핑'과 같습니다.
@@ -22,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import socket
 import sys
 import time
 from pathlib import Path
@@ -49,6 +52,9 @@ JOINTS = [
 ]
 
 ZERO_FILE = Path(__file__).with_name("leader_zero.json")   # 영점 틱 저장 파일
+
+# UDP 보내는 곳. 5053은 카메라 프로젝트, 5050은 다른 프로그램이 써서 5060 사용
+DEFAULT_UDP = "127.0.0.1:5060"
 
 
 def _utf8_stdout() -> None:
@@ -172,7 +178,35 @@ def ticks_to_degrees(ticks: list[int | None], zero: list[int],
 
 
 # ---------------------------------------------------------------------------
-# 3) 실행 모드
+# 3) UDP 보내기 — 받는 쪽(유니티 등)이 여러 개여도 같은 메시지를 각각 보낸다
+#    메시지 예: {"type": "so101_leader", "seq": 12, "t": 1792634500.12,
+#               "deg": [0.0, 1.1, -0.2, -0.7, 2.5, 45.0]}
+#    deg 순서 = JOINTS 순서 (shoulder_pan, shoulder_lift, elbow_flex,
+#                             wrist_flex, wrist_roll, gripper)
+# ---------------------------------------------------------------------------
+class UdpSender:
+    def __init__(self, targets: list[str]):
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.targets = []
+        for t in targets:                            # "IP:포트" 글자를 (IP, 포트)로
+            host, port = t.rsplit(":", 1)
+            self.targets.append((host, int(port)))
+        self.seq = 0                                 # 보낸 순서 번호 (빠진 메시지 확인용)
+
+    def send(self, degrees: list[float]) -> None:
+        self.seq += 1
+        msg = json.dumps({
+            "type": "so101_leader",
+            "seq": self.seq,
+            "t": round(time.time(), 3),
+            "deg": [round(d, 2) for d in degrees],
+        }).encode("utf-8")
+        for target in self.targets:
+            self.sock.sendto(msg, target)
+
+
+# ---------------------------------------------------------------------------
+# 4) 실행 모드
 # ---------------------------------------------------------------------------
 def scan_ports() -> None:
     """USB 시리얼 포트에서 서보 1~6 응답을 확인 (읽기만)"""
@@ -218,8 +252,9 @@ def capture_zero(port: str) -> None:
     print(f"[저장] {ZERO_FILE.name}: {data['zero_ticks']}  (샘플 {len(samples)}개 평균)")
 
 
-def run(port: str, hz: float, print_every: float, seconds: float = 0) -> None:
-    """hz 속도로 읽어서 각도를 출력. Ctrl+C로 종료 (seconds > 0 이면 그 시간 뒤 종료)"""
+def run(port: str, hz: float, print_every: float, seconds: float = 0,
+        sender: UdpSender | None = None) -> None:
+    """hz 속도로 읽어서 각도를 출력(+UDP로 보내기). Ctrl+C로 종료 (seconds > 0 이면 그 시간 뒤 종료)"""
     zero, has_file = load_zero()
     if not has_file:
         print("[주의] 영점 파일이 없어 서보 중앙(2048)을 영점으로 씁니다. "
@@ -236,6 +271,8 @@ def run(port: str, hz: float, print_every: float, seconds: float = 0) -> None:
             ticks = bus.read_ticks()
             misses += sum(t is None for t in ticks)
             last = ticks_to_degrees(ticks, zero, last)
+            if sender:
+                sender.send(last)                    # 읽을 때마다 바로 보냄
             frames += 1
 
             now = time.perf_counter()
@@ -264,6 +301,9 @@ def main() -> None:
     ap.add_argument("--hz", type=float, default=30.0, help="읽는 속도 (기본 30)")
     ap.add_argument("--print-every", type=float, default=0.5, help="출력 간격(초)")
     ap.add_argument("--seconds", type=float, default=0, help="이 시간(초) 뒤 자동 종료 (0 = 계속)")
+    ap.add_argument("--udp", action="append", metavar="IP:PORT",
+                    help=f"각도를 보낼 곳 (여러 번 쓸 수 있음, 기본 {DEFAULT_UDP})")
+    ap.add_argument("--no-udp", action="store_true", help="UDP로 보내지 않고 출력만")
     ap.add_argument("--scan", action="store_true", help="포트마다 서보 응답 확인")
     ap.add_argument("--capture-zero", action="store_true", help="지금 자세를 영점으로 저장")
     a = ap.parse_args()
@@ -275,7 +315,11 @@ def main() -> None:
     elif a.capture_zero:
         capture_zero(a.port)
     else:
-        run(a.port, a.hz, a.print_every, a.seconds)
+        sender = None
+        if not a.no_udp:
+            sender = UdpSender(a.udp or [DEFAULT_UDP])
+            print(f"[UDP] 보내는 곳: {', '.join(f'{h}:{p}' for h, p in sender.targets)}")
+        run(a.port, a.hz, a.print_every, a.seconds, sender)
 
 
 if __name__ == "__main__":
