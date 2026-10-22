@@ -941,6 +941,55 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 43.252, y: -120.733, z: 0.001}
+--- !u!1 &984964340 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 6160142155859459611, guid: 4a0b4462613c39948b3164dcd032265d, type: 3}
+  m_PrefabInstance: {fileID: 2025811652132332466}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &984964344
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 984964340}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2400dd236cfa8584f9fe087d724fc093, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LeaderArmReceiver
+  port: 5060
+  linkNames:
+  - shoulder_link
+  - upper_arm_link
+  - lower_arm_link
+  - wrist_link
+  - gripper_link
+  - moving_jaw_so101_v1_link
+  useJoint: 010000000000
+  holdOthersAtZero: 1
+  offsetDeg:
+  - 0
+  - 0
+  - 0
+  - 0
+  - 0
+  - 0
+  invert: 000000000000
+  stiffness: 10000
+  damping: 100
+  forceLimit: 1000
+  receivedCount: 0
+  lastSeq: 0
+  missedSeq: 0
+  receiveHz: 0
+  lastDeg:
+  - 0
+  - 0
+  - 0
+  - 0
+  - 0
+  - 0
 --- !u!1 &1028295679 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: -5216928910743719724, guid: d8465ec3c7e636749b211f2976394954, type: 3}
@@ -2015,7 +2064,10 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 6160142155859459611, guid: 4a0b4462613c39948b3164dcd032265d, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 984964344}
   m_SourcePrefab: {fileID: 100100000, guid: 4a0b4462613c39948b3164dcd032265d, type: 3}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
