@@ -966,7 +966,7 @@ MonoBehaviour:
   - wrist_link
   - gripper_link
   - moving_jaw_so101_v1_link
-  useJoint: 010000000000
+  useJoint: 010101010101
   holdOthersAtZero: 1
   offsetDeg:
   - 0
@@ -981,7 +981,7 @@ MonoBehaviour:
   forceLimit: 1000
   receivedCount: 0
   lastSeq: 0
-  missedSeq: 0
+  lostCount: 0
   receiveHz: 0
   lastDeg:
   - 0
@@ -2017,6 +2017,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 4109651203037711789, guid: 4a0b4462613c39948b3164dcd032265d, type: 3}
+      propertyPath: m_XDrive.lowerLimit
+      value: -12
+      objectReference: {fileID: 0}
     - target: {fileID: 5802589878357501201, guid: 4a0b4462613c39948b3164dcd032265d, type: 3}
       propertyPath: m_LocalPosition.x
       value: -2.801

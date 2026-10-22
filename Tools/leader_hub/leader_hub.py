@@ -15,10 +15,17 @@
   python leader_hub.py --port COM5                  # 30Hz로 읽어서 출력 + UDP 5060으로 보내기
   python leader_hub.py --port COM5 --no-udp         # 출력만
   python leader_hub.py --port COM5 --capture-zero   # 지금 자세("ㄱ"자)를 영점으로 저장
+  python leader_hub.py --port COM5 --capture-gripper-closed  # 리더 집게를 꽉 오므린 위치 저장
 
 각도 계산은 교수님 웹 시뮬레이터(assets/js/feetech-webserial.js)의 '원시 매핑'과 같습니다.
   각도 = (틱 - 영점 틱) × 360/4096 + (관절 한계의 가운데 값)
 그래서 같은 영점을 쓰면 웹 시뮬레이터 화면의 각도와 같은 숫자가 나옵니다.
+
+예외 — 그리퍼: 위 계산이면 리더 집게를 꽉 오므려도 약 15°까지만 내려가서 유니티 집게가
+  다물지 않습니다. 그래서 '집게 닫힘 틱'을 저장해 두었으면 그리퍼만 이렇게 계산합니다.
+  그리퍼 각도 = (틱 - 닫힘 틱) × 360/4096 + GRIPPER_CLOSED_DEG(-12°)
+  → 리더를 꽉 오므리면 -12° = 유니티 집게 끝이 맞닿는 각도 (10/22 Scene 화면으로 맞춤)
+  -12°는 URDF 한계(-10°)보다 2° 바깥이라, 유니티 그리퍼 하한도 -12°로 넓혀 둠
 """
 from __future__ import annotations
 
@@ -40,6 +47,7 @@ SERVO_IDS = [1, 2, 3, 4, 5, 6]     # 관절 순서대로 서보 ID
 ADDR_PRESENT_POSITION = 56         # 서보의 "현재 위치" 레지스터 (2바이트)
 TICKS_PER_REV = 4096               # 서보 한 바퀴 = 4096틱
 CENTER_TICK = 2048                 # 영점 파일이 없을 때 쓰는 기본 영점
+GRIPPER_CLOSED_DEG = -12.0         # 리더 집게 꽉 오므림 = 유니티 집게 닫힘 각도 (URDF 하한 -10°보다 2° 더)
 
 # (관절 이름, 최소 °, 최대 °) — URDF 한계, CLAUDE.md 표와 같음
 JOINTS = [
@@ -155,24 +163,37 @@ class LeaderBus:
 # ---------------------------------------------------------------------------
 # 2) 틱 → 각도
 # ---------------------------------------------------------------------------
-def load_zero() -> tuple[list[int], bool]:
-    """영점 파일을 읽는다. 없으면 서보 중앙(2048)을 쓴다"""
+def read_zero_file() -> dict:
+    """영점 파일 내용 (없으면 빈 dict)"""
     if ZERO_FILE.exists():
-        data = json.loads(ZERO_FILE.read_text(encoding="utf-8"))
-        return [int(data["zero_ticks"][name]) for name, _, _ in JOINTS], True
-    return [CENTER_TICK] * len(JOINTS), False
+        return json.loads(ZERO_FILE.read_text(encoding="utf-8"))
+    return {}
+
+
+def load_zero() -> tuple[list[int], bool, int | None]:
+    """영점 틱, 영점 파일 유무, 그리퍼 닫힘 틱(없으면 None). 영점 파일이 없으면 서보 중앙(2048)"""
+    data = read_zero_file()
+    closed = data.get("gripper_closed_tick")
+    if "zero_ticks" in data:
+        return [int(data["zero_ticks"][name]) for name, _, _ in JOINTS], True, closed
+    return [CENTER_TICK] * len(JOINTS), False, closed
 
 
 def ticks_to_degrees(ticks: list[int | None], zero: list[int],
-                     last: list[float]) -> list[float]:
-    """웹 시뮬레이터 '원시 매핑'과 같은 계산. 못 읽은 관절은 직전 값을 유지"""
+                     last: list[float], gripper_closed: int | None = None) -> list[float]:
+    """웹 시뮬레이터 '원시 매핑'과 같은 계산. 못 읽은 관절은 직전 값을 유지
+    그리퍼는 닫힘 틱이 있으면 닫힘 틱 = GRIPPER_CLOSED_DEG(-12°)로 계산"""
     out = []
     for i, (name, lo, hi) in enumerate(JOINTS):
         t = ticks[i]
         if t is None:
             out.append(last[i])
             continue
-        deg = (t - zero[i]) * 360.0 / TICKS_PER_REV + (lo + hi) / 2
+        if name == "gripper" and gripper_closed is not None:
+            lo = GRIPPER_CLOSED_DEG                  # 자르는 아래 끝도 -12°
+            deg = (t - gripper_closed) * 360.0 / TICKS_PER_REV + lo
+        else:
+            deg = (t - zero[i]) * 360.0 / TICKS_PER_REV + (lo + hi) / 2
         out.append(max(lo, min(hi, deg)))          # 관절 한계 안으로 자르기
     return out
 
@@ -226,12 +247,12 @@ def scan_ports() -> None:
         print(f"{p.device:6} 응답 {ok}/6  틱={ticks}  ({p.description})")
 
 
-def capture_zero(port: str) -> None:
-    """지금 자세를 영점으로 저장. 리더암을 "ㄱ"자(0자세)로 놓고 실행"""
+def read_avg_ticks(port: str) -> tuple[list[int] | None, int]:
+    """20번 읽어서 평균 틱 (손 떨림 줄이기). 응답이 없으면 None"""
     bus = LeaderBus(port)
     samples = []
     try:
-        for _ in range(20):                         # 20번 읽어서 평균 (손 떨림 줄이기)
+        for _ in range(20):
             t = bus.read_ticks()
             if all(v is not None for v in t):
                 samples.append(t)
@@ -239,23 +260,50 @@ def capture_zero(port: str) -> None:
     finally:
         bus.close()
     if not samples:
+        return None, 0
+    return [round(sum(s[i] for s in samples) / len(samples)) for i in range(len(JOINTS))], len(samples)
+
+
+def capture_zero(port: str) -> None:
+    """지금 자세를 영점으로 저장. 리더암을 "ㄱ"자(0자세)로 놓고 실행"""
+    avg, n = read_avg_ticks(port)
+    if avg is None:
         print("[실패] 서보 응답이 없어 영점을 저장하지 못했습니다")
         return
-    avg = [round(sum(s[i] for s in samples) / len(samples)) for i in range(len(JOINTS))]
+    old = read_zero_file()
     data = {
         "note": "리더암을 ㄱ자(0자세)로 놓고 --capture-zero로 저장한 틱 값",
         "saved_at": time.strftime("%Y-%m-%d %H:%M:%S"),
         "port": port,
         "zero_ticks": {name: avg[i] for i, (name, _, _) in enumerate(JOINTS)},
     }
+    for k in ("gripper_closed_tick", "gripper_closed_saved_at"):   # 집게 닫힘 값은 그대로 둠
+        if k in old:
+            data[k] = old[k]
     ZERO_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"[저장] {ZERO_FILE.name}: {data['zero_ticks']}  (샘플 {len(samples)}개 평균)")
+    print(f"[저장] {ZERO_FILE.name}: {data['zero_ticks']}  (샘플 {n}개 평균)")
+
+
+def capture_gripper_closed(port: str) -> None:
+    """리더 집게를 꽉 오므린 위치(틱)를 저장. 이 틱이 그리퍼 -12°(GRIPPER_CLOSED_DEG)가 됨"""
+    avg, n = read_avg_ticks(port)
+    if avg is None:
+        print("[실패] 서보 응답이 없어 저장하지 못했습니다")
+        return
+    data = read_zero_file()
+    gi = [name for name, _, _ in JOINTS].index("gripper")
+    data["gripper_closed_tick"] = avg[gi]
+    data["gripper_closed_saved_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
+    ZERO_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(f"[저장] {ZERO_FILE.name}: gripper_closed_tick={avg[gi]}  (샘플 {n}개 평균)")
 
 
 def run(port: str, hz: float, print_every: float, seconds: float = 0,
         sender: UdpSender | None = None) -> None:
     """hz 속도로 읽어서 각도를 출력(+UDP로 보내기). Ctrl+C로 종료 (seconds > 0 이면 그 시간 뒤 종료)"""
-    zero, has_file = load_zero()
+    zero, has_file, gripper_closed = load_zero()
+    print("[그리퍼] " + (f"닫힘 틱 {gripper_closed} = {GRIPPER_CLOSED_DEG}°" if gripper_closed is not None
+                       else "닫힘 틱 없음 → 원시 매핑 (--capture-gripper-closed 로 저장 가능)"))
     if not has_file:
         print("[주의] 영점 파일이 없어 서보 중앙(2048)을 영점으로 씁니다. "
               "각도가 웹 시뮬레이터와 다를 수 있어요 → --capture-zero 먼저")
@@ -270,7 +318,7 @@ def run(port: str, hz: float, print_every: float, seconds: float = 0,
         while seconds <= 0 or time.perf_counter() - t_start < seconds:
             ticks = bus.read_ticks()
             misses += sum(t is None for t in ticks)
-            last = ticks_to_degrees(ticks, zero, last)
+            last = ticks_to_degrees(ticks, zero, last, gripper_closed)
             if sender:
                 sender.send(last)                    # 읽을 때마다 바로 보냄
             frames += 1
@@ -306,6 +354,8 @@ def main() -> None:
     ap.add_argument("--no-udp", action="store_true", help="UDP로 보내지 않고 출력만")
     ap.add_argument("--scan", action="store_true", help="포트마다 서보 응답 확인")
     ap.add_argument("--capture-zero", action="store_true", help="지금 자세를 영점으로 저장")
+    ap.add_argument("--capture-gripper-closed", action="store_true",
+                    help="리더 집게를 꽉 오므린 위치를 저장 (그리퍼 -12°로 맞춤)")
     a = ap.parse_args()
 
     if a.scan:
@@ -314,6 +364,8 @@ def main() -> None:
         ap.error("--port 가 필요합니다 (모르면 --scan 먼저)")
     elif a.capture_zero:
         capture_zero(a.port)
+    elif a.capture_gripper_closed:
+        capture_gripper_closed(a.port)
     else:
         sender = None
         if not a.no_udp:

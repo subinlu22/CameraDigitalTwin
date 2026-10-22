@@ -9,5 +9,7 @@
     "wrist_flex": 1162,
     "wrist_roll": 2253,
     "gripper": 2382
-  }
+  },
+  "gripper_closed_tick": 2043,
+  "gripper_closed_saved_at": "2026-10-22 13:54:54"
 }

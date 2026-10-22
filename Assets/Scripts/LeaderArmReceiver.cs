@@ -25,7 +25,7 @@ public class LeaderArmReceiver : MonoBehaviour
         "shoulder_link", "upper_arm_link", "lower_arm_link",
         "wrist_link", "gripper_link", "moving_jaw_so101_v1_link"
     };
-    public bool[] useJoint = { true, false, false, false, false, false }; // 체크한 관절만 리더를 따라감
+    public bool[] useJoint = { true, true, true, true, true, true }; // 체크한 관절만 리더를 따라감
     public bool holdOthersAtZero = true;   // 체크 안 한 관절은 0°에서 버티게 (끄면 중력에 처짐)
 
     [Header("보정값 (10/22 확인: 전부 0 / 반전 없음)")]
