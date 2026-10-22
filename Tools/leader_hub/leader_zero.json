@@ -1,0 +1,13 @@
+{
+  "note": "리더암을 ㄱ자(0자세)로 놓고 --capture-zero로 저장한 틱 값",
+  "saved_at": "2026-10-22 11:53:20",
+  "port": "COM5",
+  "zero_ticks": {
+    "shoulder_pan": 2052,
+    "shoulder_lift": 3270,
+    "elbow_flex": 1503,
+    "wrist_flex": 1162,
+    "wrist_roll": 2253,
+    "gripper": 2382
+  }
+}
