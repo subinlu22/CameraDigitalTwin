@@ -19,6 +19,7 @@ BAUD = 1_000_000
 SERVO_IDS = [1, 2, 3, 4, 5, 6]
 ADDR_TORQUE_ENABLE = 40      # 1바이트: 1 = 힘 줌, 0 = 힘 뺌
 ADDR_GOAL_POSITION = 42      # 2바이트: 목표 위치(틱)
+ADDR_TORQUE_LIMIT = 48      # 2바이트: 힘 제한 0~1000 (1000 = 100%)
 ADDR_PRESENT_POSITION = 56   # 2바이트: 현재 위치(틱)
 
 
@@ -106,6 +107,10 @@ class ServoBus:
     def write_goal(self, ids: list[int], ticks: list[int]) -> None:
         items = [(sid, [t & 0xFF, (t >> 8) & 0xFF]) for sid, t in zip(ids, ticks)]
         self.ser.write(build_sync_write(ADDR_GOAL_POSITION, 2, items))
+
+    def set_torque_limit(self, ids: list[int], limit: int) -> None:
+        v = max(0, min(1000, int(limit)))
+        self.ser.write(build_sync_write(ADDR_TORQUE_LIMIT, 2, [(sid, [v & 0xFF, (v >> 8) & 0xFF]) for sid in ids]))
 
     def set_torque(self, ids: list[int], on: bool) -> None:
         self.ser.write(build_sync_write(ADDR_TORQUE_ENABLE, 1, [(sid, [1 if on else 0]) for sid in ids]))

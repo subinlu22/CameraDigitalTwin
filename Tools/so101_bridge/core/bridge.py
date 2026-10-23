@@ -202,6 +202,8 @@ class Bridge:
             self.follow_lo_hi.append((min(lo, self.cmd[i]), max(hi, self.cmd[i])))
         self.dry_run = bool(dry_run)
         if not self.dry_run:
+            if 6 in ids:                       # 집게는 힘을 제한 (닫힘 위치를 아직 안 재서 세게 누르지 않게)
+                fb.set_torque_limit([6], int(self.cfg.get("gripper_torque_limit", 500)))
             fb.write_goal(ids, [fc.tick(i - 1, self.cmd[i - 1]) for i in ids])
             fb.set_torque(ids, True)           # 목표 = 지금 위치를 먼저 넣고 힘을 켬
             self.torque_on = True
@@ -232,6 +234,7 @@ class Bridge:
                 return err
             pan = float(self.cfg.get("clear_pan_deg", 45.0))
             cur = list(self.cmd)
+            goal = list(goal); goal[cal.GRIPPER] = cur[cal.GRIPPER]   # 자세 이동 때 집게는 지금 그대로
             w1 = list(cur); w1[0] = pan                       # 1) 어깨만 옆으로
             w2 = list(goal); w2[0] = pan                      # 2) 나머지 관절을 목표 자세로
             w3 = list(goal)                                   # 3) 어깨를 목표 각도로

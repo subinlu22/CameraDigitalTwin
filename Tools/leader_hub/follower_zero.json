@@ -10,5 +10,8 @@
     "wrist_flex": 1102,
     "wrist_roll": 2089,
     "gripper": 2391
-  }
+  },
+  "gripper_closed_tick": 2033,
+  "gripper_closed_note": "10/23 실측: 흰 팔 집게 끝이 막 닿는 틱 2058. 아귀가 꽉 맞물리게 그보다 2.2°(25틱) 안쪽을 -12°로 저장",
+  "gripper_closed_saved_at": "2026-10-23 17:04:26"
 }
