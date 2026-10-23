@@ -10,7 +10,10 @@ using UnityEngine;
 // 리더암 6관절 각도를 받아서, 유니티 로봇팔 관절을 똑같은 각도로 움직이는 스크립트
 //
 // 흐름: (별도 스레드) UDP 수신 → 가장 최근 메시지 하나만 보관
-//       → (Update, 메인 스레드) 그 메시지의 각도를 관절 목표 각도(xDrive.target)로 넣기
+//       → (FixedUpdate, 물리 단계 50Hz) 새 메시지가 오면 "지금 각도 → 새 각도" 구간을 만들고,
+//         매 단계 그 구간의 중간값(보간)을 관절 목표 각도(xDrive.target)로 넣기
+// ※ 메시지는 30Hz, 물리는 50Hz라 보간이 없으면 목표가 멈췄다 튀었다 함 → 끊김
+//   보간하면 메시지 1개 간격(약 33ms)만큼 늦는 대신 매 단계 조금씩 이어서 움직임
 // ※ 미러링은 "지금 자세"만 중요해서, 밀린 옛날 메시지는 버리고 최신 것만 씀
 // ※ 0자세·방향은 10/22에 확인함: 웹 시뮬 각도 = 유니티 각도 (오프셋 0, 반전 없음)
 // =============================================================
@@ -37,6 +40,23 @@ public class LeaderArmReceiver : MonoBehaviour
     public float damping = 100f;
     public float forceLimit = 1000f;
 
+    [Header("보간 (10/23 B안: 두 메시지 사이를 시간에 맞춰 채우기)")]
+    public bool interpolate = true;        // 끄면 예전처럼 메시지 올 때 바로 점프
+    public float maxGapSec = 0.1f;         // 메시지 간격이 이보다 길면(끊김) 이 시간 안에 따라잡음
+
+    [Header("측정 (최근 1초, 보기용)")]
+    public float frozenStepRatio;   // 리더가 움직이는 중인데 목표 각도가 안 바뀐 물리 단계 비율 (끊김)
+    public float maxStepDeg;        // 물리 단계 한 번에 목표가 가장 크게 바뀐 양 (점프 크기)
+    public float avgLagDeg;         // 리더 각도와 유니티 실제 관절 각도의 평균 차이 (지연)
+    public float maxLagDeg;
+    public bool logMeasure = true;  // 1초마다 측정값을 Console에 찍기 (비교 기록용)
+
+    [Header("측정 누계 (리더가 움직인 단계만, 보기용)")]
+    public int totalSteps, totalFrozen;
+    public float totalMaxStep, totalAvgLag, totalMaxLag;
+    float tLagSum; int tLagN;
+    public void ResetTotals() { totalSteps = totalFrozen = tLagN = 0; totalMaxStep = totalAvgLag = totalMaxLag = tLagSum = 0f; }
+
     [Header("상태 (보기용)")]
     public int receivedCount;      // 받은 메시지 수 (화면 프레임보다 빨리 오면 최신 것만 적용됨 — 정상)
     public int lastSeq;            // 마지막 메시지 순서 번호
@@ -53,6 +73,16 @@ public class LeaderArmReceiver : MonoBehaviour
 
     ArticulationBody[] joints;
     int hzCount; float hzTimer;    // 수신 속도 계산용
+
+    // 보간용: "출발 각도"에서 "최신 각도"까지 duration초 동안 이어서 그림
+    float[] fromDeg = new float[6], toDeg = new float[6], cmdDeg = new float[6];
+    float segStart, segDuration = 1f / 30f;
+    double lastMsgT = -1;
+    bool hasTarget;
+
+    // 측정용
+    float[] prevCmd = new float[6];
+    int mSteps, mFrozen; float mMaxStep, mLagSum, mLagMax; int mLagN; float mTimer;
     float lastReceiveTime = -1f;
     bool warnedStale;
 
@@ -109,28 +139,42 @@ public class LeaderArmReceiver : MonoBehaviour
         }
     }
 
-    // Update()는 매 프레임마다 유니티가 자동으로 호출하는 함수
-    void Update()
+    // FixedUpdate()는 물리 계산 직전마다(0.02초 = 50Hz) 유니티가 자동으로 호출하는 함수
+    // 관절은 물리로 움직여서, 목표 각도도 물리 단계마다 넣어야 매끄러움
+    void FixedUpdate()
     {
+        float now = Time.time; // FixedUpdate 안에서는 물리 시각
         int count = Interlocked.Exchange(ref newMessages, 0); // 새로 받은 수를 꺼내고 0으로
         receivedCount += count;
-        UpdateRate(count);
+        UpdateRate(count, Time.fixedDeltaTime);
 
         if (count > 0)
         {
-            ApplyMessage(latestJson);
-            lastReceiveTime = Time.time;
+            ApplyMessage(latestJson, now);
+            lastReceiveTime = now;
             warnedStale = false;
         }
-        else if (lastReceiveTime > 0 && Time.time - lastReceiveTime > 1f && !warnedStale)
+        else if (lastReceiveTime > 0 && now - lastReceiveTime > 1f && !warnedStale)
         {
             Debug.LogWarning("[미러링] 1초 넘게 메시지가 없음 — leader_hub.py가 켜져 있나요?");
             warnedStale = true;
         }
+
+        if (!hasTarget) return;
+
+        // [보간] 출발 각도 → 최신 각도 사이에서 지금 시각에 해당하는 각도를 계산
+        float a = interpolate ? Mathf.Clamp01((now - segStart) / segDuration) : 1f;
+        for (int i = 0; i < joints.Length; i++)
+        {
+            cmdDeg[i] = Mathf.Lerp(fromDeg[i], toDeg[i], a);
+            if (!useJoint[i] || joints[i] == null) continue;
+            SetDrive(joints[i], cmdDeg[i], false);
+        }
+        Measure(Time.fixedDeltaTime);
     }
 
-    // [메시지 적용] JSON 해석 → 체크한 관절의 목표 각도로 넣기
-    void ApplyMessage(string json)
+    // [메시지 적용] JSON 해석 → 보간의 새 구간을 시작 (지금 그리는 각도에서 최신 각도로)
+    void ApplyMessage(string json, float now)
     {
         LeaderMessage msg;
         try { msg = JsonUtility.FromJson<LeaderMessage>(json); }
@@ -146,12 +190,73 @@ public class LeaderArmReceiver : MonoBehaviour
         lastSeq = msg.seq;
         lostCount = Mathf.Max(0, (lastSeq - seqBase) - receivedCount);
 
+        // 구간 길이 = 보낸 쪽 시각 차이 (보통 1/30초). 이상하면 1/30초, 너무 길면 maxGapSec
+        double gap = lastMsgT > 0 ? msg.t - lastMsgT : 1.0 / 30.0;
+        segDuration = (float)(gap > 0.005 ? Math.Min(gap, maxGapSec) : 1.0 / 30.0);
+        lastMsgT = msg.t;
+
         for (int i = 0; i < joints.Length; i++)
         {
             lastDeg[i] = msg.deg[i];
-            if (!useJoint[i] || joints[i] == null) continue;
             float deg = (invert[i] ? -msg.deg[i] : msg.deg[i]) + offsetDeg[i];
-            SetDrive(joints[i], deg, false);
+            // 첫 메시지는 바로 그 자세로, 이후엔 "지금 그리는 각도"에서 출발 → 중간에 와도 안 튐
+            fromDeg[i] = hasTarget ? cmdDeg[i] : deg;
+            toDeg[i] = deg;
+        }
+        // 구간 시작을 한 단계 앞으로 잡음 → 메시지가 온 이 단계부터 바로 움직임
+        // (now로 잡으면 이 단계의 비율이 0이라 목표가 그대로 = 메시지마다 한 번씩 멈춤)
+        segStart = now - Time.fixedDeltaTime;
+        hasTarget = true;
+    }
+
+    // [측정] 1초마다: 끊김(목표가 멈춘 단계 비율), 점프 크기, 지연(리더 vs 실제 관절 각도 차이)
+    void Measure(float dt)
+    {
+        // 리더가 움직이는 중 = 0.1초 안에 메시지가 왔고, 그 메시지에서 각도가 바뀜 (허브가 꺼지면 안 셈)
+        bool leaderMoving = false;
+        if (Time.time - lastReceiveTime < 0.1f)
+            for (int i = 0; i < 5; i++) // 그리퍼 제외 5관절
+                if (Mathf.Abs(toDeg[i] - fromDeg[i]) > 0.3f) leaderMoving = true;
+
+        float step = 0f;
+        for (int i = 0; i < 5; i++)
+        {
+            step = Mathf.Max(step, Mathf.Abs(cmdDeg[i] - prevCmd[i]));
+            prevCmd[i] = cmdDeg[i];
+            if (joints[i] == null || !useJoint[i]) continue;
+            float actual = joints[i].jointPosition[0] * Mathf.Rad2Deg; // 실제 관절 각도
+            float lag = Mathf.Abs(toDeg[i] - actual);
+            mLagSum += lag; mLagN++; mLagMax = Mathf.Max(mLagMax, lag);
+        }
+        if (leaderMoving) { mSteps++; if (step < 0.01f) mFrozen++; }
+        mMaxStep = Mathf.Max(mMaxStep, step);
+
+        // 누계 (보간 끔/켬 구간 비교용 — ResetTotals()로 0부터 다시 셈)
+        if (leaderMoving)
+        {
+            totalSteps++; if (step < 0.01f) totalFrozen++;
+            totalMaxStep = Mathf.Max(totalMaxStep, step);
+            for (int i = 0; i < 5; i++)
+            {
+                if (joints[i] == null || !useJoint[i]) continue;
+                float lag = Mathf.Abs(toDeg[i] - joints[i].jointPosition[0] * Mathf.Rad2Deg);
+                tLagSum += lag; tLagN++; totalMaxLag = Mathf.Max(totalMaxLag, lag);
+            }
+            totalAvgLag = tLagN > 0 ? tLagSum / tLagN : 0f;
+        }
+
+        mTimer += dt;
+        if (mTimer >= 1f)
+        {
+            frozenStepRatio = mSteps > 0 ? (float)mFrozen / mSteps : 0f;
+            maxStepDeg = mMaxStep;
+            avgLagDeg = mLagN > 0 ? mLagSum / mLagN : 0f;
+            maxLagDeg = mLagMax;
+            if (logMeasure && mSteps > 0) // 리더가 움직인 1초만 찍음
+                Debug.Log($"[미러링 측정] 보간={(interpolate ? "켬" : "끔")} 수신={receiveHz:F0}Hz " +
+                          $"끊김={frozenStepRatio * 100f:F0}% 최대점프={maxStepDeg:F2}° " +
+                          $"지연 평균={avgLagDeg:F2}° 최대={maxLagDeg:F2}° 움직인단계={mSteps}");
+            mSteps = mFrozen = mLagN = 0; mMaxStep = mLagSum = mLagMax = 0f; mTimer = 0f;
         }
     }
 
@@ -172,10 +277,10 @@ public class LeaderArmReceiver : MonoBehaviour
     }
 
     // [수신 속도] 1초마다 받은 개수를 Hz로 표시
-    void UpdateRate(int count)
+    void UpdateRate(int count, float dt)
     {
         hzCount += count;
-        hzTimer += Time.deltaTime;
+        hzTimer += dt;
         if (hzTimer >= 1f)
         {
             receiveHz = hzCount / hzTimer;
