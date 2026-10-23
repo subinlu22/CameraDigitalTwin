@@ -23,36 +23,30 @@
     <button id="estop" class="estop"><span class="sq"></span>비상 정지 <kbd>Space</kbd></button>
   </header>
 
-  <!-- 가운데: 로봇 -->
+  <!-- 가운데: 로봇 (보기 전용 — 버튼은 모두 오른쪽) -->
   <section class="stage glass">
-    <div class="stage-tools">
-      <button id="follow" class="tool primary"><svg viewBox="0 0 16 16"><path d="M4 2.5v11l9-5.5z"/></svg>연동 시작</button>
-      <button id="stop" class="tool"><svg viewBox="0 0 16 16"><rect x="3.5" y="3.5" width="9" height="9" rx="1.5"/></svg>정지</button>
-      <button id="release" class="tool warn"><svg viewBox="0 0 16 16"><path d="M8 2v7M4.5 5.5 8 9l3.5-3.5M3 13h10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>힘 빼기</button>
-      <label class="tool toggle"><input type="checkbox" id="dry" checked><span class="sw"></span>dry-run</label>
-      <div class="tool-sep">자동 자세</div>
-      <button id="toL" class="tool"><svg viewBox="0 0 16 16"><path d="M4 13V4h8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>ㄱ자로</button>
-      <button id="toRest" class="tool"><svg viewBox="0 0 16 16"><path d="M3 11h10M5 11l3-5 3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>쉬는 자세로</button>
+    <div class="stage-left">
+      <div class="eyebrow">관절 각도 · 흰 팔</div>
+      <div class="angles" id="angles"></div>
     </div>
     <div class="stage-title">
       <div class="eyebrow">3D View · 마우스로 돌리기 / 휠로 확대</div>
       <div class="legend"><i class="lg-follower"></i>흰 팔 실제 <i class="lg-leader"></i>리더 (반투명)</div>
-      <div class="angles" id="angles"></div>
       <button id="resetView" class="link">시점 초기화</button>
     </div>
     <div id="view3d"><div class="loading" id="loading3d">3D 모델 불러오는 중…</div></div>
-    <div class="stage-foot" id="sideMeta"></div>
-    <div id="dryBadge" class="dry-badge hidden"><b>DRY-RUN</b> 흰 팔은 안 움직이고 값만 계산 중 — 실제로 움직이려면 [정지] → dry-run 끄기 → 다시 시작</div>
+    <div class="stage-foot note">⚠ 소프트웨어 정지와 별개로, 흰 팔 전원 어댑터를 바로 뽑을 수 있게 두세요</div>
+    <div id="dryBadge" class="dry-badge hidden"><b>연습 모드</b> 흰 팔은 안 움직이고 값만 계산 중 — 실제로 움직이려면 [정지] → 연습 모드 끄기 → 다시 시작</div>
     <div id="estopBanner" class="banner hidden">
-      <b>비상 정지 중</b><span>흰 팔은 그 자리에서 멈췄어요. 해제해야 다시 연동할 수 있어요.</span>
+      <b>비상 정지 중</b><span>흰 팔은 그 자리에서 멈췄어요. 해제해야 다시 움직일 수 있어요.</span>
       <button id="estopReset" class="tool">해제</button>
     </div>
   </section>
 
-  <!-- 오른쪽: 속성 카드 -->
+  <!-- 오른쪽: 버튼은 전부 여기 -->
   <aside class="side-col">
     <div class="card glass">
-      <div class="card-h"><span class="tile">1</span>연결<button id="scan" class="link">포트 찾기</button></div>
+      <div class="card-h"><span class="tile">1</span>연결 · 흰 팔 제어<button id="scan" class="link">포트 찾기</button></div>
       <div class="conn" data-role="leader">
         <div class="who"><b>리더</b><span>검은 팔 · 읽기만</span></div>
         <select class="port"></select>
@@ -62,6 +56,15 @@
         <div class="who"><b>흰 팔</b><span>팔로워 · 움직임</span></div>
         <select class="port"></select>
         <button class="pill connect">연결</button>
+      </div>
+      <label class="row toggle">
+        <div><b>연습 모드</b><span>켜면 흰 팔은 안 움직이고 값만 계산</span></div>
+        <input type="checkbox" id="dry" checked><span class="sw"></span>
+      </label>
+      <div class="ctl">
+        <button id="follow" class="tool primary wide"><svg viewBox="0 0 16 16"><path d="M4 2.5v11l9-5.5z"/></svg>연동 시작</button>
+        <button id="stop" class="tool"><svg viewBox="0 0 16 16"><rect x="3.5" y="3.5" width="9" height="9" rx="1.5"/></svg>정지</button>
+        <button id="release" class="tool warn"><svg viewBox="0 0 16 16"><path d="M8 2v7M4.5 5.5 8 9l3.5-3.5M3 13h10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>힘 빼기</button>
       </div>
     </div>
 
@@ -74,6 +77,13 @@
       <div class="row col">
         <div><b>흰 팔 입력 소스</b></div>
         <div class="seg" id="source"><button data-v="leader">리더</button><button data-v="unity">유니티 <i>v2</i></button><button data-v="off">끔</button></div>
+      </div>
+      <div class="row col">
+        <div><b>자동 자세</b><span>어깨를 45° 먼저 돌려 벨트를 피해서 이동</span></div>
+        <div class="ctl two">
+          <button id="toL" class="tool"><svg viewBox="0 0 16 16"><path d="M4 13V4h8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>ㄱ자로</button>
+          <button id="toRest" class="tool"><svg viewBox="0 0 16 16"><path d="M3 11h10M5 11l3-5 3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>쉬는 자세로</button>
+        </div>
       </div>
       <div class="kv" id="followMeta"></div>
     </div>
@@ -93,7 +103,6 @@
           <button data-zero="follower,l_pose" data-q="흰 팔 힘을 뺀 상태에서 손으로 ㄱ자로 잡고 있나요?">흰 팔 · ㄱ자에서 저장</button>
         </div>
       </details>
-      <div class="note">소프트웨어 정지와 별개로, 흰 팔 전원 어댑터를 바로 뽑을 수 있게 두세요</div>
     </div>
   </aside>
 

@@ -128,8 +128,8 @@ function render(st) {
   // 상태
   const s = $("#state");
   if (st.estop) { s.className = "state stop"; $("#stateText").textContent = "비상 정지"; }
-  else if (st.follow && st.motion) { s.className = "state " + (st.dry_run ? "dry" : "run"); $("#stateText").textContent = `${st.motion}로 이동 중 · ${st.motion_step}/${st.motion_total}단계 · ${st.dry_run ? "dry-run" : "실제"}`; }
-  else if (st.follow) { s.className = "state " + (st.dry_run ? "dry" : "run"); $("#stateText").textContent = `연동 중 · ${st.source} · ${st.dry_run ? "dry-run" : "실제"}`; }
+  else if (st.follow && st.motion) { s.className = "state " + (st.dry_run ? "dry" : "run"); $("#stateText").textContent = `${st.motion}로 이동 중 · ${st.motion_step}/${st.motion_total}단계 · ${st.dry_run ? "연습 모드" : "실제"}`; }
+  else if (st.follow) { s.className = "state " + (st.dry_run ? "dry" : "run"); $("#stateText").textContent = `연동 중 · ${st.source} · ${st.dry_run ? "연습 모드" : "실제"}`; }
   else { s.className = "state"; $("#stateText").textContent = `대기 · 흰 팔 힘 ${st.torque ? "켜짐" : "꺼짐"}`; }
   $("#estopBanner").classList.toggle("hidden", !st.estop);
   $("#dryBadge").classList.toggle("hidden", !(st.follow && st.dry_run));
@@ -235,12 +235,11 @@ function appendLogs(lines, count) {
 
 // ---------------------------------------------------------------- 3D 위 각도 카드
 function renderAngles(st) {
-  const L = st.leader, F = st.follower, rows = [0, 1, 2, 3];
+  const L = st.leader, F = st.follower, rows = [0, 1, 2, 3, 4, 5];   // 왼쪽에 6관절 모두
   $("#angles").innerHTML = rows.map(i => {
     const cmd = st.follow && st.cmd_deg && st.follow_ids.includes(i + 1) ? ` · 명령 ${f1(st.cmd_deg[i])}°` : "";
     return `<div class="ang"><i></i><div><span>${info.joints[i].ko}</span><b>${f1(F.deg[i])}°</b></div><em>리더 ${f1(L.deg[i])}°${cmd}</em></div>`;
   }).join("");
-  $("#sideMeta").textContent = `손목 회전 ${f1(L.deg[4])}° / ${f1(F.deg[4])}° · 그리퍼 ${f1(L.deg[5])}° / ${f1(F.deg[5])}°  (리더 / 흰 팔)`;
 }
 
 init();

@@ -41,9 +41,9 @@ button { font: inherit; color: inherit; }
 .app {
   height: 100vh; padding: 14px 16px 16px;
   display: grid; gap: 12px;
-  grid-template-columns: 1fr 330px;
+  grid-template-columns: 1fr 300px 380px;
   grid-template-rows: 56px 1fr 196px;
-  grid-template-areas: "top top" "stage side" "gauges log";
+  grid-template-areas: "top top top" "stage stage side" "gauges log side";
 }
 .top { grid-area: top; }
 .stage { grid-area: stage; }
@@ -107,6 +107,12 @@ kbd { font: 10px "Cascadia Mono", Consolas, monospace; background: rgba(0,0,0,.2
 .tool.toggle input { display: none; }
 .tool-sep { margin: 6px 0 -2px 4px; color: var(--muted); font-size: 10px; letter-spacing: .5px; }
 .stage-title { position: absolute; top: 18px; right: 20px; text-align: right; z-index: 2; }
+.stage-left { position: absolute; top: 18px; left: 18px; z-index: 2; }
+.stage-left .angles { justify-items: start; margin-top: 8px; }
+.ctl { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+.ctl .tool { min-width: 0; justify-content: center; }
+.ctl .tool.wide { grid-column: 1 / -1; padding: 12px; font-size: 14px; }
+.ctl.two { margin-top: 0; }
 .eyebrow { font-size: 11px; color: var(--muted); letter-spacing: .5px; text-transform: uppercase; margin-bottom: 6px; }
 .legend { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
 .legend i { width: 16px; height: 4px; border-radius: 2px; display: inline-block; margin-left: 8px; }
@@ -199,7 +205,7 @@ select:disabled { opacity: .6; }
 /* 아래 게이지 */
 .gauges { padding: 12px 16px; display: flex; flex-direction: column; }
 .gauges .card-h { margin-bottom: 4px; }
-.gauge-row { flex: 1; display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
+.gauge-row { flex: 1; display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
 .g { position: relative; border-radius: 14px; background: rgba(5,10,20,.35); border: 1px solid var(--stroke); padding: 6px 8px 8px; display: flex; flex-direction: column; align-items: center; }
 .g.out { border-color: rgba(255,181,71,.6); box-shadow: 0 0 0 1px rgba(255,181,71,.2) inset; }
 .g svg { width: 100%; max-width: 140px; height: auto; }

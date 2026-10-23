@@ -216,7 +216,7 @@ class Bridge:
                 return err
             self.motion, self.motion_name = [], None
             self.follow = True
-        return self._ok(f"흰 팔 연동 시작 — 소스 {self.source}, {'dry-run(안 움직임)' if dry_run else '실제'}, "
+        return self._ok(f"흰 팔 연동 시작 — 소스 {self.source}, {'연습 모드(안 움직임)' if dry_run else '실제'}, "
                         f"최대 {self.cfg['max_speed_dps']:.0f}°/초, 그리퍼 {'포함' if self.cfg.get('follow_gripper') else '제외'}")
 
     def goto_pose(self, pose: str, dry_run: bool = False) -> dict:
@@ -247,7 +247,7 @@ class Bridge:
             self.motion_name = name
             self.follow = True
         return self._ok(f"{name}로 이동 시작 — 어깨 {pan:.0f}° 돌리기 → 자세 바꾸기 → 어깨 되돌리기, "
-                        f"{float(self.cfg.get('pose_speed_dps', 20)):.0f}°/초, {'dry-run(안 움직임)' if dry_run else '실제'}")
+                        f"{float(self.cfg.get('pose_speed_dps', 20)):.0f}°/초, {'연습 모드(안 움직임)' if dry_run else '실제'}")
 
     def _hold_here(self) -> None:
         """흰 팔 '지금 실제 위치'를 목표로 써서 그 자리에 멈춤 (힘 켜져 있을 때만)"""
@@ -415,7 +415,7 @@ class Bridge:
                 if not self.motion:
                     name = self.motion_name
                     self.follow, self.motion_name = False, None
-                    self.log(f"{name} 도착 (dry-run)" if self.dry_run else f"{name} 도착 — 흰 팔은 그 자세에서 힘을 준 채 멈춤")
+                    self.log(f"{name} 도착 (연습 모드)" if self.dry_run else f"{name} 도착 — 흰 팔은 그 자세에서 힘을 준 채 멈춤")
                     return
             deg = self.motion[0]
         else:                                             # 연동: 입력 소스를 따라감
