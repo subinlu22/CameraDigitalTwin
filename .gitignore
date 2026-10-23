@@ -46,3 +46,9 @@ desktop.ini
 
 # 파이썬 임시 파일
 __pycache__/
+
+# ===== Poly Haven 원본 에셋 (Tools/fetch_polyhaven.py로 받음) =====
+# .meta는 커밋 → 다시 받아도 머티리얼 연결(GUID) 유지
+/Assets/ThirdParty/PolyHaven/**/*.jpg
+/Assets/ThirdParty/PolyHaven/**/*.hdr
+/Assets/ThirdParty/PolyHaven/**/*.fbx
