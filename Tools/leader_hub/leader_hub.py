@@ -59,6 +59,10 @@ JOINTS = [
     ("gripper", -10.0, 100.0),
 ]
 
+# 자를 때만 쓰는 넓힌 한계 (각도 계산의 '한계 가운데 값'은 위 JOINTS 그대로 → 각도가 밀리지 않음)
+# shoulder_lift: 실물 쉬는 자세가 -107.7°라 URDF -100°에서 자르면 유니티 팔이 실물보다 덜 접힘 (10/23 벨트 닿음 비교)
+CLAMP_OVERRIDE = {"shoulder_lift": (-110.0, 100.0)}
+
 ZERO_FILE = Path(__file__).with_name("leader_zero.json")   # 영점 틱 저장 파일
 
 # UDP 보내는 곳. 5053은 카메라 프로젝트, 5050은 다른 프로그램이 써서 5060 사용
@@ -194,6 +198,7 @@ def ticks_to_degrees(ticks: list[int | None], zero: list[int],
             deg = (t - gripper_closed) * 360.0 / TICKS_PER_REV + lo
         else:
             deg = (t - zero[i]) * 360.0 / TICKS_PER_REV + (lo + hi) / 2
+            lo, hi = CLAMP_OVERRIDE.get(name, (lo, hi))
         out.append(max(lo, min(hi, deg)))          # 관절 한계 안으로 자르기
     return out
 
