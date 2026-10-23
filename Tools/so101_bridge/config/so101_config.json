@@ -1,0 +1,46 @@
+{
+  "_설명": "컨트롤 패널 설정. 켤 때 자동으로 읽음. 포트는 연결할 때마다 여기에 저장됨",
+  "leader_port": "COM5",
+  "follower_port": "COM6",
+  "hz": 30,
+  "udp": {
+    "angles_out": [
+      "127.0.0.1:5060"
+    ],
+    "cmd_in_port": 5061,
+    "status_out": [
+      "127.0.0.1:5062"
+    ],
+    "target_in_port": 5063
+  },
+  "leader_zero_file": "../../leader_hub/leader_zero.json",
+  "follower_zero_file": "../../leader_hub/follower_zero.json",
+  "joint_limit_override": {
+    "shoulder_lift": [
+      -110.0,
+      100.0
+    ]
+  },
+  "safety_margin_deg": 5.0,
+  "safe_range_override": {
+    "shoulder_lift": [
+      -108.0,
+      95.0
+    ]
+  },
+  "max_speed_dps": 30.0,
+  "watchdog_s": 0.3,
+  "follow_gripper": false,
+  "status_hz": 5,
+  "rest_pose_deg": [
+    0.0,
+    -107.6,
+    87.2,
+    71.1,
+    0.0,
+    0.0
+  ],
+  "clear_pan_deg": 45.0,
+  "pose_speed_dps": 20.0,
+  "_자세이동_설명": "goto_pose: 어깨를 clear_pan_deg(+ = 로봇 오른쪽, 벨트 끝 쪽)로 돌림 → 자세 바꿈 → 어깨 되돌림. rest_pose_deg = 10/23 실측 쉬는 자세"
+}
