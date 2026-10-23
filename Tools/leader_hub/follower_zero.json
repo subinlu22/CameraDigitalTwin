@@ -1,0 +1,14 @@
+{
+  "note": "흰 팔(팔로워) 영점 틱 — 리더 영점(leader_zero.json)과 같은 자세(ㄱ자)일 때의 틱",
+  "how": "두 팔 쉬는 자세 차이로 계산",
+  "saved_at": "2026-10-23 14:10:44",
+  "port": "COM6",
+  "zero_ticks": {
+    "shoulder_pan": 1983,
+    "shoulder_lift": 3138,
+    "elbow_flex": 1428,
+    "wrist_flex": 1102,
+    "wrist_roll": 2089,
+    "gripper": 2391
+  }
+}
