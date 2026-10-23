@@ -57,6 +57,7 @@
 | `estop_reset` | – | 비상 정지 해제 |
 | `release` | `confirm`: true | 흰 팔 힘 빼기 (팔이 떨어짐 → 받치고) |
 | `capture_zero` | `role`, `method`(l_pose/rest) | 영점 저장. rest는 흰 팔만(두 팔 쉬는 자세 차이) |
+| `reset_zero` | – | 흰 팔 영점을 설정 파일 `follower_zero_default`(10/23 쉬는 자세 기준)로 되돌림 |
 | `get_status` | – | 상태 한 번 |
 
 ### `so101_ack` (5062) — 명령 응답

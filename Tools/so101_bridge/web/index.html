@@ -42,6 +42,7 @@
     </div>
     <div id="view3d"><div class="loading" id="loading3d">3D 모델 불러오는 중…</div></div>
     <div class="stage-foot" id="sideMeta"></div>
+    <div id="dryBadge" class="dry-badge hidden"><b>DRY-RUN</b> 흰 팔은 안 움직이고 값만 계산 중 — 실제로 움직이려면 [정지] → dry-run 끄기 → 다시 시작</div>
     <div id="estopBanner" class="banner hidden">
       <b>비상 정지 중</b><span>흰 팔은 그 자리에서 멈췄어요. 해제해야 다시 연동할 수 있어요.</span>
       <button id="estopReset" class="tool">해제</button>
@@ -78,12 +79,20 @@
     </div>
 
     <div class="card glass">
-      <div class="card-h"><span class="tile">3</span>영점<em>읽기만 함</em></div>
-      <div class="zero">
-        <button data-zero="leader,l_pose" data-q="리더를 ㄱ자(0자세)로 잡고 있나요?">리더 · ㄱ자 저장</button>
-        <button data-zero="follower,rest" data-q="리더와 흰 팔 둘 다 접힌 쉬는 자세인가요?">흰 팔 · 쉬는 자세로 계산</button>
-        <button data-zero="follower,l_pose" data-q="흰 팔 힘을 뺀 상태에서 손으로 ㄱ자로 잡고 있나요?">흰 팔 · ㄱ자 저장</button>
+      <div class="card-h"><span class="tile">3</span>영점<em>각도의 기준(0°)</em></div>
+      <div class="zero-state">
+        <div><span>리더</span><b id="zeroLeader">—</b></div>
+        <div><span>흰 팔</span><b id="zeroFollower">—</b></div>
       </div>
+      <button id="zeroReset" class="zero-reset hidden">흰 팔 영점 기본값으로 되돌리기</button>
+      <details class="adv">
+        <summary>고급 · 영점 다시 재기</summary>
+        <div class="zero">
+          <button data-zero="leader,l_pose" data-q="리더를 ㄱ자(0자세)로 잡고 있나요?">리더 · ㄱ자에서 저장</button>
+          <button data-zero="follower,rest" data-q="리더와 흰 팔 둘 다 접힌 쉬는 자세인가요?">흰 팔 · 두 팔 쉬는 자세로 계산</button>
+          <button data-zero="follower,l_pose" data-q="흰 팔 힘을 뺀 상태에서 손으로 ㄱ자로 잡고 있나요?">흰 팔 · ㄱ자에서 저장</button>
+        </div>
+      </details>
       <div class="note">소프트웨어 정지와 별개로, 흰 팔 전원 어댑터를 바로 뽑을 수 있게 두세요</div>
     </div>
   </aside>

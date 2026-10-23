@@ -42,5 +42,14 @@
   ],
   "clear_pan_deg": 45.0,
   "pose_speed_dps": 20.0,
-  "_자세이동_설명": "goto_pose: 어깨를 clear_pan_deg(+ = 로봇 오른쪽, 벨트 끝 쪽)로 돌림 → 자세 바꿈 → 어깨 되돌림. rest_pose_deg = 10/23 실측 쉬는 자세"
+  "_자세이동_설명": "goto_pose: 어깨를 clear_pan_deg(+ = 로봇 오른쪽, 벨트 끝 쪽)로 돌림 → 자세 바꿈 → 어깨 되돌림. rest_pose_deg = 10/23 실측 쉬는 자세",
+  "follower_zero_default": {
+    "shoulder_pan": 1983,
+    "shoulder_lift": 3138,
+    "elbow_flex": 1428,
+    "wrist_flex": 1102,
+    "wrist_roll": 2089,
+    "gripper": 2391
+  },
+  "_흰팔영점기본값_설명": "10/23 오전 두 팔 쉬는 자세 차이로 계산(4634fb7). 실물 연동·벨트 닿음 비교를 이 값으로 확인함. 패널 [기본값으로 되돌리기]가 이 값을 씀"
 }

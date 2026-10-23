@@ -80,6 +80,9 @@ async function init() {
     const [role, method] = b.dataset.zero.split(",");
     if (await confirmBox("영점 저장", b.dataset.q + "\n\n읽기만 하고 로봇은 움직이지 않아요.")) cmd({ cmd: "capture_zero", role, method });
   });
+  $("#zeroReset").onclick = async () => {
+    if (await confirmBox("흰 팔 영점 기본값으로", "흰 팔 영점을 기본값(10/23 쉬는 자세 기준)으로 되돌려요.\n로봇은 움직이지 않아요.")) cmd({ cmd: "reset_zero" });
+  };
   $("#estop").onclick = () => cmd({ cmd: "estop" });
   $("#estopReset").onclick = () => cmd({ cmd: "estop_reset" });
   $("#quit").onclick = async () => {
@@ -129,6 +132,13 @@ function render(st) {
   else if (st.follow) { s.className = "state " + (st.dry_run ? "dry" : "run"); $("#stateText").textContent = `연동 중 · ${st.source} · ${st.dry_run ? "dry-run" : "실제"}`; }
   else { s.className = "state"; $("#stateText").textContent = `대기 · 흰 팔 힘 ${st.torque ? "켜짐" : "꺼짐"}`; }
   $("#estopBanner").classList.toggle("hidden", !st.estop);
+  $("#dryBadge").classList.toggle("hidden", !(st.follow && st.dry_run));
+  // 영점 상태
+  const zl = $("#zeroLeader"), zf = $("#zeroFollower");
+  zl.textContent = st.leader.zero_ready ? "ㄱ자 기준 (10/22)" : "없음"; zl.className = st.leader.zero_ready ? "ok" : "warn";
+  zf.textContent = !st.follower.zero_ready ? "없음" : (st.follower.zero_default ? "기본값 (쉬는 자세 기준)" : "기본값과 다름");
+  zf.className = st.follower.zero_default ? "ok" : "warn";
+  $("#zeroReset").classList.toggle("hidden", !!st.follower.zero_default);
 
   // 칩
   const chip = (id, a) => {

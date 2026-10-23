@@ -39,6 +39,7 @@ class Bridge:
             "leader": cal.ArmCalib((cdir / self.cfg["leader_zero_file"]).resolve(), use_gripper_closed=True),
             "follower": cal.ArmCalib((cdir / self.cfg["follower_zero_file"]).resolve(), use_gripper_closed=False),
         }
+        self._derive_follower_gripper()
         self.safety = Safety(self.cfg)
         self.lock = threading.RLock()
         self.bus: dict[str, ServoBus | None] = {"leader": None, "follower": None}
@@ -74,6 +75,14 @@ class Bridge:
         self.thread = threading.Thread(target=self._loop, daemon=True)
         self.thread.start()
         self.log("브리지 시작 — 설정: " + str(config_path.name))
+
+    def _derive_follower_gripper(self) -> None:
+        """흰 팔 집게도 리더처럼 '닫힘 틱 = -12°'로 계산 (따로 잰 값이 없을 때)
+        흰 팔 닫힘 틱 = 리더 닫힘 틱 + (흰 팔 영점 − 리더 영점)  ※ 흰 팔 집게 실제 닫힘 위치는 아직 안 잼"""
+        lc, fc = self.calib["leader"], self.calib["follower"]
+        fc.use_gripper_closed = True
+        if fc.ready and lc.ready and lc.gripper_closed is not None and fc.gripper_closed is None:
+            fc.gripper_closed = lc.gripper_closed + (fc.zero[cal.GRIPPER] - lc.zero[cal.GRIPPER])
 
     # ------------------------------------------------------------------ 기록
     def log(self, text: str) -> None:
@@ -306,6 +315,7 @@ class Bridge:
                 if avg is None:
                     return self._err(f"{role} 연결/응답 확인")
                 self.calib[role].save_zero(avg, f"{role}를 ㄱ자(0자세)로 놓고 저장", self.bus[role].port)
+                self._derive_follower_gripper()
                 return self._ok(f"{role} ㄱ자 영점 저장: {avg}")
             if method == "rest" and role == "follower":
                 lc = self.calib["leader"]
@@ -316,8 +326,25 @@ class Bridge:
                     return self._err("리더·흰 팔 둘 다 연결돼 있어야 해요")
                 zero = [z + (f - l) for z, f, l in zip(lc.zero, fr, lr)]
                 self.calib["follower"].save_zero(zero, "두 팔 쉬는 자세 틱 차이로 계산", self.bus["follower"].port)
+                self._derive_follower_gripper()
                 return self._ok(f"흰 팔 영점(쉬는 자세 차이) 저장: {zero}")
         return self._err(f"모르는 방법: {role}/{method}")
+
+    def _default_zero(self) -> list[int] | None:
+        d = self.cfg.get("follower_zero_default")
+        return [int(d[n]) for n in cal.NAMES] if d else None
+
+    def reset_zero_default(self) -> dict:
+        """흰 팔 영점을 설정 파일의 기본값(10/23 쉬는 자세 기준)으로 되돌림"""
+        if self.follow:
+            return self._err("움직이는 중에는 영점을 바꿀 수 없어요")
+        z = self._default_zero()
+        if z is None:
+            return self._err("설정 파일에 follower_zero_default가 없어요")
+        port = self.bus["follower"].port if self.bus["follower"] else self.cfg.get("follower_port", "")
+        self.calib["follower"].save_zero(z, "기본값 (10/23 두 팔 쉬는 자세 차이로 계산, 4634fb7)", port)
+        self._derive_follower_gripper()
+        return self._ok(f"흰 팔 영점을 기본값으로 되돌림: {z}")
 
     # ------------------------------------------------------------------ 루프
     def _follow_ids(self) -> list[int]:
@@ -411,7 +438,8 @@ class Bridge:
             return {"connected": b is not None, "port": b.port if b else self.cfg.get(f"{role}_port"),
                     "hz": round(v["hz"], 1), "ticks": v["ticks"],
                     "deg": [None if d is None else round(d, 2) for d in v["deg"]],
-                    "zero_ready": self.calib[role].ready}
+                    "zero_ready": self.calib[role].ready,
+                    "zero_default": (role == "follower" and self.calib[role].zero == self._default_zero())}
         return {"type": "so101_status", "t": round(time.time(), 3),
                 "leader": arm("leader"), "follower": arm("follower"),
                 "mirror": self.mirror, "sent": self.sent, "source": self.source,
@@ -452,6 +480,8 @@ class Bridge:
                 return self.release(bool(msg.get("confirm")))
             if c == "capture_zero":
                 return self.capture_zero(msg["role"], msg["method"])
+            if c == "reset_zero":
+                return self.reset_zero_default()
             if c == "get_status":
                 return {"ok": True, "msg": "", "status": self.status()}
         except KeyError as e:
