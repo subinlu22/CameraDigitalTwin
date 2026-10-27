@@ -5,34 +5,55 @@ using UnityEngine.Rendering.PostProcessing;
 
 // 프리셋 켜기/끄기 (플레이 중, 빌드 exe에서도 동작)
 // 흐름: 켤 때 지금 상태(하늘·주변광·조명 밝기·카메라·재질)를 기억 → 프리셋 값 적용 + 룸 보이기
-//       끌 때 기억한 값으로 되돌리고 룸 숨기기. L 키로 토글.
+//       끌 때 기억한 값으로 되돌리고 룸 숨기기.
+// L 키: 프리셋 순서대로 넘김 (공장 → 스튜디오 → 끄기 → 공장 ...)
 public class LookPresetApplier : MonoBehaviour
 {
+    [System.Serializable]
+    public class Look { public LookPreset preset; public GameObject roomRoot; }
+    public Look[] looks;                    // 프리셋 + 그 프리셋의 룸 (씬에는 꺼진 채 저장)
+
+    [Header("지금 적용 중인 것 (looks에서 자동으로 채움)")]
     public LookPreset preset;
-    public GameObject roomRoot;             // FactoryRoom (씬에는 꺼진 채 저장)
+    public GameObject roomRoot;
     public PostProcessLayer postLayer;      // Main Camera에 붙은 것 (꺼진 채 저장)
     public bool applyOnStart = true;
     public Key toggleKey = Key.L;
 
     public bool IsOn { get; private set; }
+    public int Index { get; private set; } = -1;  // -1 = 꺼짐
 
     // 되돌리기용 원래 값
-    Material _sky; UnityEngine.Rendering.AmbientMode _ambMode; float _ambInt, _reflInt;
+    Material _sky; UnityEngine.Rendering.AmbientMode _ambMode; float _ambInt, _reflInt; Color _ambColor;
     bool _fog; Color _fogColor; float _fogDensity; FogMode _fogMode;
-    Vector3 _camPos; Quaternion _camRot; float _camFov;
+    Vector3 _camPos; Quaternion _camRot; float _camFov; CameraClearFlags _camClear; Color _camBg;
     readonly Dictionary<Light, float> _lights = new Dictionary<Light, float>();
     readonly Dictionary<Renderer, Material[]> _mats = new Dictionary<Renderer, Material[]>();
+    readonly List<Renderer> _hidden = new List<Renderer>();
+    GameObject _probe;
 
     void Start()
     {
-        if (roomRoot) roomRoot.SetActive(false);
-        if (applyOnStart) SetOn(true);
+        if (looks != null) foreach (var l in looks) if (l.roomRoot) l.roomRoot.SetActive(false);
+        if (applyOnStart) Select(0);
     }
+
+    // i번 프리셋으로 바꾸기 (-1이면 끄기)
+    public void Select(int i)
+    {
+        if (IsOn) SetOn(false);
+        Index = (looks != null && i >= 0 && i < looks.Length) ? i : -1;
+        if (Index < 0) return;
+        preset = looks[Index].preset; roomRoot = looks[Index].roomRoot;
+        SetOn(true);
+    }
+
+    public void Next() { Select(Index + 1 < (looks?.Length ?? 0) ? Index + 1 : -1); }
 
     void Update()
     {
         var kb = Keyboard.current;
-        if (kb != null && kb[toggleKey].wasPressedThisFrame) SetOn(!IsOn);
+        if (kb != null && kb[toggleKey].wasPressedThisFrame) Next();
     }
 
     void OnDisable() { if (IsOn) SetOn(false); }
@@ -51,7 +72,9 @@ public class LookPresetApplier : MonoBehaviour
         _fog = RenderSettings.fog; _fogColor = RenderSettings.fogColor;
         _fogDensity = RenderSettings.fogDensity; _fogMode = RenderSettings.fogMode;
 
-        if (preset.skybox) RenderSettings.skybox = preset.skybox;
+        _ambColor = RenderSettings.ambientLight;
+        RenderSettings.skybox = preset.skybox ? preset.skybox : _sky;
+        RenderSettings.ambientLight = preset.ambientColor;
         RenderSettings.ambientMode = preset.ambientMode;
         RenderSettings.ambientIntensity = preset.ambientIntensity;
         RenderSettings.reflectionIntensity = preset.reflectionIntensity;
@@ -84,10 +107,22 @@ public class LookPresetApplier : MonoBehaviour
                 r.sharedMaterials = arr;
             }
 
+        _hidden.Clear();
+        if (preset.hideObjects != null)
+            foreach (var n in preset.hideObjects)
+            {
+                var go = GameObject.Find(n);
+                if (go == null) continue;
+                foreach (var r in go.GetComponentsInChildren<Renderer>())
+                    if (r.enabled) { r.enabled = false; _hidden.Add(r); }
+            }
+
         var cam = Camera.main;
         if (cam)
         {
             _camPos = cam.transform.position; _camRot = cam.transform.rotation; _camFov = cam.fieldOfView;
+            _camClear = cam.clearFlags; _camBg = cam.backgroundColor;
+            if (preset.solidBackground) { cam.clearFlags = CameraClearFlags.SolidColor; cam.backgroundColor = preset.backgroundColor; }
             if (preset.moveCamera)
             {
                 cam.transform.SetPositionAndRotation(preset.cameraPosition, Quaternion.Euler(preset.cameraEuler));
@@ -97,11 +132,24 @@ public class LookPresetApplier : MonoBehaviour
 
         if (roomRoot) roomRoot.SetActive(true);
         if (postLayer) postLayer.enabled = true;
+
+        // 반사 프로브는 씬에 저장하지 않고 켤 때만 만듦 (라이트맵 굽기와 안 섞이게)
+        if (preset.reflectionProbe)
+        {
+            _probe = new GameObject("_LookReflectionProbe") { hideFlags = HideFlags.DontSave };
+            _probe.transform.position = preset.probePosition;
+            var rp = _probe.AddComponent<ReflectionProbe>();
+            rp.mode = UnityEngine.Rendering.ReflectionProbeMode.Realtime;
+            rp.refreshMode = UnityEngine.Rendering.ReflectionProbeRefreshMode.ViaScripting;
+            rp.timeSlicingMode = UnityEngine.Rendering.ReflectionProbeTimeSlicingMode.NoTimeSlicing;
+            rp.size = preset.probeSize; rp.resolution = 256; rp.hdr = true; rp.importance = 10;
+            rp.RenderProbe();
+        }
     }
 
     void Restore()
     {
-        RenderSettings.skybox = _sky; RenderSettings.ambientMode = _ambMode;
+        RenderSettings.skybox = _sky; RenderSettings.ambientMode = _ambMode; RenderSettings.ambientLight = _ambColor;
         RenderSettings.ambientIntensity = _ambInt; RenderSettings.reflectionIntensity = _reflInt;
         RenderSettings.fog = _fog; RenderSettings.fogColor = _fogColor;
         RenderSettings.fogDensity = _fogDensity; RenderSettings.fogMode = _fogMode;
@@ -109,8 +157,10 @@ public class LookPresetApplier : MonoBehaviour
 
         foreach (var kv in _lights) if (kv.Key) kv.Key.intensity = kv.Value;
         foreach (var kv in _mats) if (kv.Key) kv.Key.sharedMaterials = kv.Value;
+        foreach (var r in _hidden) if (r) r.enabled = true;
 
         var cam = Camera.main;
+        if (cam) { cam.clearFlags = _camClear; cam.backgroundColor = _camBg; }
         if (cam && preset.moveCamera)
         {
             cam.transform.SetPositionAndRotation(_camPos, _camRot);
@@ -119,5 +169,6 @@ public class LookPresetApplier : MonoBehaviour
 
         if (roomRoot) roomRoot.SetActive(false);
         if (postLayer) postLayer.enabled = false;
+        if (_probe) { if (Application.isPlaying) Destroy(_probe); else DestroyImmediate(_probe); _probe = null; }
     }
 }

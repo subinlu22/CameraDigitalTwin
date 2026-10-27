@@ -10,6 +10,7 @@ public class LookPreset : ScriptableObject
     public Material skybox;                       // HDRI 스카이박스
     public AmbientMode ambientMode = AmbientMode.Skybox;
     [Range(0, 3)] public float ambientIntensity = 1f;
+    public Color ambientColor = new Color(0.8f, 0.8f, 0.8f);   // ambientMode가 Flat일 때
     [Range(0, 2)] public float reflectionIntensity = 1f;
 
     [Header("안개 (깊이감)")]
@@ -20,11 +21,23 @@ public class LookPreset : ScriptableObject
     [Header("기존 씬 조명 밝기 배율 (룸 밖 조명만)")]
     [Range(0, 2)] public float sceneLightScale = 1f;
 
+    [Header("배경색 (하늘 대신 단색, 스튜디오용)")]
+    public bool solidBackground = false;
+    public Color backgroundColor = Color.white;
+
     [Header("데모 카메라 (Main Camera를 이 위치로 옮김)")]
     public bool moveCamera = true;
     public Vector3 cameraPosition;
     public Vector3 cameraEuler;
     public float cameraFov = 35f;
+
+    [Header("반사 (켤 때만 실시간 반사 프로브를 만들어 금속이 주변을 비추게)")]
+    public bool reflectionProbe = false;
+    public Vector3 probePosition;
+    public Vector3 probeSize = new Vector3(12, 6, 12);
+
+    [Header("숨길 오브젝트 (켤 때만, 끄면 다시 보임) 예: flow 작업대")]
+    public string[] hideObjects;
 
     [Header("재질 바꾸기 (켤 때만, 끄면 원래대로)")]
     public MaterialSwap[] materialSwaps;
