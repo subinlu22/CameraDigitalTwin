@@ -21,12 +21,17 @@ MonoBehaviour:
   fogColor: {r: 0.96, g: 0.96, b: 0.97, a: 1}
   fogDensity: 0.07
   sceneLightScale: 1
+  lightScales: []
   solidBackground: 1
   backgroundColor: {r: 0.96, g: 0.96, b: 0.97, a: 1}
   moveCamera: 1
-  cameraPosition: {x: -2.9796088, y: 0.3400131, z: -3.1947546}
-  cameraEuler: {x: 11.796022, y: 319.1927, z: -0.0003309972}
+  cameraPosition: {x: -3.124, y: 0.307, z: -3.082}
+  cameraEuler: {x: 11.3187, y: 322.1144, z: -0.0022}
   cameraFov: 30.000002
+  reflectionProbe: 0
+  probePosition: {x: 0, y: 0, z: 0}
+  probeSize: {x: 12, y: 6, z: 12}
+  probeIntensity: 1
   hideObjects:
   - flow
   materialSwaps: []

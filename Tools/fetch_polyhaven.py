@@ -12,7 +12,7 @@ import urllib.request
 ROOT = os.path.join(os.path.dirname(__file__), "..", "Assets", "ThirdParty", "PolyHaven")
 UA = {"User-Agent": "so101-sim/1.0"}  # User-Agent 없으면 403
 
-HDRI = [("empty_warehouse_01", "1k")]
+HDRI = [("empty_warehouse_01", "1k"), ("meadow_2", "2k")]  # meadow_2 = 공장 창밖 자연 풍경
 TEXTURES = [  # (이름, 해상도) — 카메라에 보이는 면만
     ("concrete_wall_008", "2k"),      # 뒤쪽 벽
     ("hangar_concrete_floor", "1k"),  # 바닥 (조금만 보임)

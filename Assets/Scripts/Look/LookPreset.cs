@@ -21,6 +21,16 @@ public class LookPreset : ScriptableObject
     [Header("기존 씬 조명 밝기 배율 (룸 밖 조명만)")]
     [Range(0, 2)] public float sceneLightScale = 1f;
 
+    [Header("조명별 추가 배율 (이름으로 찾음) 예: 벨트 위 Spot Light만 줄이기")]
+    public LightScale[] lightScales;
+
+    [System.Serializable]
+    public struct LightScale
+    {
+        public string lightName;   // 씬 조명 오브젝트 이름 (예: Spot Light)
+        [Range(0, 2)] public float scale;
+    }
+
     [Header("배경색 (하늘 대신 단색, 스튜디오용)")]
     public bool solidBackground = false;
     public Color backgroundColor = Color.white;
@@ -35,6 +45,7 @@ public class LookPreset : ScriptableObject
     public bool reflectionProbe = false;
     public Vector3 probePosition;
     public Vector3 probeSize = new Vector3(12, 6, 12);
+    [Range(0, 2)] public float probeIntensity = 1f;   // 낮추면 테이블 같은 반짝이는 면이 덜 하얗게 뜸
 
     [Header("숨길 오브젝트 (켤 때만, 끄면 다시 보임) 예: flow 작업대")]
     public string[] hideObjects;

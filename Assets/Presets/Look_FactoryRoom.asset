@@ -12,24 +12,32 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 06fee03d0b491f240876731ceb336d83, type: 3}
   m_Name: Look_FactoryRoom
   m_EditorClassIdentifier: Assembly-CSharp::LookPreset
-  skybox: {fileID: 2100000, guid: 0601a139df4a20345901169dfd32387a, type: 2}
+  skybox: {fileID: 2100000, guid: b67f0d303761b5242a79ef6625dce23b, type: 2}
   ambientMode: 0
-  ambientIntensity: 0.9
-  ambientColor: {r: 0.8, g: 0.8, b: 0.8, a: 1}
+  ambientIntensity: 0.55
+  ambientColor: {r: 0.55, g: 0.62, b: 0.74, a: 1}
   reflectionIntensity: 1
   fog: 0
   fogColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
   fogDensity: 0.02
   sceneLightScale: 0.7
+  lightScales:
+  - lightName: Spot Light
+    scale: 0.5
+  - lightName: RingSpot
+    scale: 0.5
+  - lightName: Directional Light (1)
+    scale: 0.4
   solidBackground: 0
   backgroundColor: {r: 1, g: 1, b: 1, a: 1}
   moveCamera: 1
-  cameraPosition: {x: -2.9796088, y: 0.3400131, z: -3.1947546}
-  cameraEuler: {x: 11.796022, y: 319.1927, z: -0.0003309972}
+  cameraPosition: {x: -3.124, y: 0.307, z: -3.082}
+  cameraEuler: {x: 11.3187, y: 322.1144, z: -0.0022}
   cameraFov: 30.000002
   reflectionProbe: 1
   probePosition: {x: -3.9, y: 0.5, z: -2.3}
   probeSize: {x: 14, y: 6, z: 14}
+  probeIntensity: 0.55
   hideObjects:
   - flow
   materialSwaps: []

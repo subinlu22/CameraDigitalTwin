@@ -91,6 +91,9 @@ public class LookPresetApplier : MonoBehaviour
             if (roomRoot && l.transform.IsChildOf(roomRoot.transform)) continue;
             _lights[l] = l.intensity;
             l.intensity *= preset.sceneLightScale;
+            if (preset.lightScales != null)
+                foreach (var ls in preset.lightScales)
+                    if (ls.lightName == l.name) l.intensity *= ls.scale;
         }
 
         _mats.Clear();
@@ -143,6 +146,7 @@ public class LookPresetApplier : MonoBehaviour
             rp.refreshMode = UnityEngine.Rendering.ReflectionProbeRefreshMode.ViaScripting;
             rp.timeSlicingMode = UnityEngine.Rendering.ReflectionProbeTimeSlicingMode.NoTimeSlicing;
             rp.size = preset.probeSize; rp.resolution = 256; rp.hdr = true; rp.importance = 10;
+            rp.intensity = preset.probeIntensity;
             rp.RenderProbe();
         }
     }

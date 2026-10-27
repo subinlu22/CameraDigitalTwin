@@ -100,15 +100,30 @@ public static class FactoryMaterialConverter
             || nm.Contains("cchannel") || nm.Contains("support") || nm.Contains("spacer") || nm.Contains("duct") || nm.Contains("pipe")))
         {
             mat.SetColor("_Color", new Color(0.74f, 0.77f, 0.81f));
-            mat.SetFloat("_Metallic", 0.6f);
+            mat.SetFloat("_Metallic", 0.35f);  // 0.6이면 주변 반사가 어두울 때 검게 보임
             mat.SetFloat("_Glossiness", 0.75f);
         }
+        // 벽·기둥·천장은 하얗게 (그림자와 대비되게)
+        if (mat.name == "Wall" || mat.name == "Pillar" || mat.name == "Ceiling" || mat.name == "Skirt")
+        {
+            mat.SetColor("_Color", new Color(1.1f, 1.1f, 1.12f));
+            mat.SetFloat("_Metallic", 0f);
+            mat.SetFloat("_Glossiness", 0.2f);
+        }
+        // 바닥: 에폭시 코팅 느낌 (수빈이 고른 어두운 회색 + 은은한 광)
+        if (mat.name == "Floor")
+        {
+            mat.SetColor("_Color", new Color(0.22f, 0.22f, 0.22f));
+            mat.SetFloat("_Metallic", 0f);
+            mat.SetFloat("_Glossiness", 0.75f);
+            mat.SetFloat("_BumpScale", 0.1f);
+        }
         // 검은 부품(프레임·벨트·고무·제어반)은 배경이 지저분해 보여서 라이트그레이 메탈로
-        if (!transparent && (nm.Contains("black") || nm.Contains("rubber") || nm.Contains("belt") || nm.Contains("moter") || nm.Contains("cable")))
+        if (!transparent && (nm.Contains("black") || nm.Contains("rubber") || nm.Contains("belt") || nm.Contains("moter") || nm.Contains("cable") || nm == "gap"))
         {
             mat.SetTexture("_MainTex", null);
             mat.SetColor("_Color", new Color(0.6f, 0.63f, 0.67f));
-            mat.SetFloat("_Metallic", 0.45f);
+            mat.SetFloat("_Metallic", 0.3f);
             mat.SetFloat("_Glossiness", 0.6f);
         }
 
