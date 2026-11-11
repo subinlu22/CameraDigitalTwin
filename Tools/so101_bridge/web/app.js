@@ -44,6 +44,14 @@ async function init() {
       else await cmd({ cmd: "connect", role, port: $(".port", c).value });
     };
   });
+  // 두 팔 연결: 리더·흰 팔을 지금 고른 포트로 한 번에 (이미 연결된 쪽은 그대로)
+  $("#connectAll").onclick = async () => {
+    for (const c of $$(".conn")) {
+      const role = c.dataset.role;
+      if (!(last && last[role].connected)) await cmd({ cmd: "connect", role, port: $(".port", c).value });
+    }
+  };
+  $("#reconnect").onclick = () => tryReconnect(true);
   $("#scan").onclick = async () => {
     $("#scan").textContent = "찾는 중…";
     const r = await cmd({ cmd: "scan_ports" });
@@ -89,7 +97,7 @@ async function init() {
     if (await confirmBox("패널 종료", "연결을 모두 해제하고 패널을 끕니다.\n(연동 중이면 흰 팔은 그 자리에서 정지)")) {
       stopped = true;
       await fetch("/api/shutdown", { method: "POST", body: "{}" });
-      document.body.innerHTML = "<p style='padding:40px;color:#9fb0cc'>패널이 종료됐어요. 이 창을 닫아도 돼요.</p>";
+      showOffline();                              // 꺼짐 화면: 다시 켜면 저절로 연결됨
     }
   };
   document.addEventListener("keydown", e => {               // Space = 비상 정지
@@ -116,8 +124,30 @@ async function loop() {
     appendLogs(d.logs, d.log_count);
   } catch (e) {
     $("#stateText").textContent = "패널 서버 연결 끊김"; $("#state").className = "state stop";
+    if (++loop.fails >= 10) { showOffline(); return; }   // 1초 넘게 안 되면 꺼짐 화면
+    setTimeout(loop, 100);
+    return;
   }
+  loop.fails = 0;
   setTimeout(loop, 100);
+}
+loop.fails = 0;
+
+// ---------------------------------------------------------------- 패널 꺼짐 → 다시 연결
+// 서버(python panel.py)가 꺼지면 이 화면이 대신 뜨고, 2초마다 다시 켜졌는지 확인 → 켜지면 새로고침
+function showOffline() {
+  stopped = true;
+  $("#offline").classList.remove("hidden");
+  clearInterval(showOffline.h);
+  showOffline.h = setInterval(() => tryReconnect(false), 2000);
+}
+async function tryReconnect(byButton) {
+  try {
+    await fetch("/api/info", { cache: "no-store" }).then(r => { if (!r.ok) throw 0; });
+    location.reload();                             // 켜져 있음 → 화면 새로 불러옴
+  } catch (e) {
+    $("#offlineTry").textContent = (byButton ? "아직 꺼져 있어요 · " : "") + new Date().toLocaleTimeString() + " 확인";
+  }
 }
 
 function render(st) {

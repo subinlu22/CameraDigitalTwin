@@ -23,6 +23,8 @@ import shutil
 import subprocess
 import sys
 import threading
+import urllib.error
+import urllib.request
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -114,9 +116,19 @@ def main() -> None:
     ap.add_argument("--no-open", action="store_true", help="창 자동으로 안 열기")
     a = ap.parse_args()
 
+    url = f"http://{HOST}:{PORT}/"
+    # 이미 켜져 있으면 (바탕화면 아이콘을 또 누른 경우) 새로 켜지 않고 창만 열기
+    try:
+        urllib.request.urlopen(url + "api/info", timeout=1)
+        print("[패널] 이미 켜져 있어요 → 창만 엽니다", flush=True)
+        if not a.no_open:
+            open_window(url)
+        return
+    except (urllib.error.URLError, OSError):
+        pass
+
     bridge = Bridge()
     server = ThreadingHTTPServer((HOST, PORT), Handler)
-    url = f"http://{HOST}:{PORT}/"
     print(f"[패널] {url}  (끄기: 화면의 [패널 종료] 또는 Ctrl+C)", flush=True)
     if not a.no_open:
         open_window(url)

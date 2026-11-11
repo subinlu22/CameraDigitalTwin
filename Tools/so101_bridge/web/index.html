@@ -46,7 +46,7 @@
   <!-- 오른쪽: 버튼은 전부 여기 -->
   <aside class="side-col">
     <div class="card glass">
-      <div class="card-h"><span class="tile">1</span>연결 · 흰 팔 제어<button id="scan" class="link">포트 찾기</button></div>
+      <div class="card-h"><span class="tile">1</span>연결 · 흰 팔 제어<button id="connectAll" class="link">두 팔 연결</button><button id="scan" class="link scan">포트 찾기</button></div>
       <div class="conn" data-role="leader">
         <div class="who"><b>리더</b><span>검은 팔 · 읽기만</span></div>
         <select class="port"></select>
@@ -123,6 +123,14 @@
     <div class="modal-title" id="modalTitle"></div>
     <div class="modal-text" id="modalText"></div>
     <div class="modal-actions"><button class="pill ghost" id="modalNo">취소</button><button class="pill solid" id="modalYes">확인</button></div>
+  </div>
+</div>
+<div id="offline" class="modal hidden">
+  <div class="modal-box glass">
+    <div class="modal-title">패널이 꺼져 있어요</div>
+    <div class="modal-text">바탕화면의 <b>SO101 패널</b>을 더블클릭해서 켜 주세요.
+켜지면 이 창이 저절로 다시 연결돼요.</div>
+    <div class="modal-actions"><span id="offlineTry" class="modal-text"></span><button class="pill solid" id="reconnect">다시 연결</button></div>
   </div>
 </div>
 <div id="toast" class="toast hidden"></div>

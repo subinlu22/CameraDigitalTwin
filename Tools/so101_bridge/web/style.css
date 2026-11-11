@@ -234,3 +234,7 @@ select:disabled { opacity: .6; }
   background: rgba(60,10,18,.92); border: 1px solid rgba(255,77,94,.5); color: #ffd1d6; max-width: 70vw; }
 
 @media (max-height: 760px) { .app { grid-template-rows: 52px 1fr 170px; } }
+
+/* 두 팔 연결 버튼 옆 포트 찾기 간격 / 꺼짐 화면 */
+.card-h .link.scan { margin-left: 12px; }
+#offlineTry { margin-right: auto; font-size: 12px; color: #8a97b0; }
