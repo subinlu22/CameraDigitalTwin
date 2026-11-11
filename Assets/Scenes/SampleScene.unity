@@ -11006,6 +11006,38 @@ MonoBehaviour:
   - 0
   - 0
   - 0
+--- !u!114 &984964348
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 984964340}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e8323345289c13848833e9720af6d49e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UnityTargetSender
+  send: 0
+  host: 127.0.0.1
+  port: 5063
+  sendHz: 30
+  sendActualAngle: 0
+  linkNames:
+  - shoulder_link
+  - upper_arm_link
+  - lower_arm_link
+  - wrist_link
+  - gripper_link
+  - moving_jaw_so101_v1_link
+  sentCount: 0
+  lastDeg:
+  - 0
+  - 0
+  - 0
+  - 0
+  - 0
+  - 0
 --- !u!1001 &997484661
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -24982,6 +25014,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 6160142155859459611, guid: 4a0b4462613c39948b3164dcd032265d, type: 3}
       insertIndex: -1
       addedObject: {fileID: 984964344}
+    - targetCorrespondingSourceObject: {fileID: 6160142155859459611, guid: 4a0b4462613c39948b3164dcd032265d, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 984964348}
   m_SourcePrefab: {fileID: 100100000, guid: 4a0b4462613c39948b3164dcd032265d, type: 3}
 --- !u!4 &2034667279649543025
 Transform:
