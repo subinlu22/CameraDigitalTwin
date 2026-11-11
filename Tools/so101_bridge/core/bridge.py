@@ -23,6 +23,7 @@ from pathlib import Path
 from . import calibration as cal
 from .net import UdpIn, UdpOut
 from .safety import Safety
+from .workspace import BeltGuard
 from .servo_bus import SERVO_IDS, ServoBus, list_ports
 from .sources import LeaderSource, OffSource, UnitySource
 
@@ -41,6 +42,16 @@ class Bridge:
         }
         self._derive_follower_gripper()
         self.safety = Safety(self.cfg)
+        # 벨트 충돌 방지 (11/11): 관절 각도 → 팔 끝 위치 계산, 벨트 위 금지 높이보다 낮아지는 쪽으로는 안 움직임
+        try:
+            self.guard = BeltGuard(self.cfg, ROOT)
+        except Exception as e:                       # 파일이 없거나 깨졌으면 끄고 알림 (브리지는 계속 돔)
+            self.guard = BeltGuard({}, ROOT)
+            self._guard_error = f"벨트 충돌 방지 꺼짐 — 설정 읽기 실패: {e}"
+        else:
+            self._guard_error = ""
+        self.belt_clear: float | None = None         # 지금 명령 자세의 벨트 여유 (m)
+        self.belt_block: str | None = None           # 막혀 있으면 이유
         self.lock = threading.RLock()
         self.bus: dict[str, ServoBus | None] = {"leader": None, "follower": None}
         self.sources = {"leader": LeaderSource(), "unity": UnitySource(), "off": OffSource()}
@@ -195,6 +206,7 @@ class Bridge:
             return self._err(f"흰 팔 위치를 못 읽었어요: {now}")
         # 흰 팔 "지금 각도"에서 출발 → 갑자기 튀지 않음
         self.cmd = [fc.deg(i, now[i]) if now[i] is not None else 0.0 for i in range(6)]
+        self.belt_block, self.belt_clear = None, None   # 벨트 제한 표시 새로 시작
         # 시작 자세가 안전 범위 밖(예: 접힌 쉬는 자세)이어도 거기까지는 허용
         self.follow_lo_hi = []
         for i in range(6):
@@ -425,11 +437,24 @@ class Bridge:
                 return
             speed = float(self.cfg["max_speed_dps"])
         max_step = speed * period
+        prev = list(self.cmd)
         for sid in ids:
             i = sid - 1
             want = clamp(i, deg[i])
             self.clipped[i] = want != deg[i]
             self.cmd[i] = Safety.step(self.cmd[i], want, max_step)
+        # [벨트 충돌 방지] 연동 중에만 (자세 이동 버튼은 어깨 먼저 돌리는 자체 경로라 제외)
+        if not self.motion and self.guard.enabled:
+            ok, clear, link = self.guard.allow(prev, self.cmd)
+            self.belt_clear = clear
+            if not ok:
+                self.cmd = prev                              # 이번 단계는 안 움직임 (지금 자세에서 버팀)
+                if self.belt_block is None:
+                    self.log(f"벨트 가까움 — 멈춤 ({link}, 여유 {clear * 100:.1f}cm). 어깨 회전을 먼저 돌려 벨트에서 비켜 주세요")
+                self.belt_block = link
+            elif self.belt_block is not None:
+                self.log("벨트 제한 풀림 — 다시 따라감")
+                self.belt_block = None
         if not self.dry_run:
             fc = self.calib["follower"]
             self.bus["follower"].write_goal(ids, [fc.tick(sid - 1, self.cmd[sid - 1]) for sid in ids])
@@ -449,6 +474,9 @@ class Bridge:
                 "follow": self.follow, "dry_run": self.dry_run, "estop": self.estopped, "torque": self.torque_on,
                 "cmd_deg": None if self.cmd is None else [round(c, 2) for c in self.cmd],
                 "clipped": self.clipped, "follow_ids": self._follow_ids(),
+                "belt_guard": {"enabled": self.guard.enabled, "error": self._guard_error,
+                               "clear_cm": None if self.belt_clear is None or self.belt_clear == float("inf") else round(self.belt_clear * 100, 2),
+                               "blocked": self.belt_block},
                 "safe_range": [list(self.safety.safe_range(i)) for i in range(6)],
                 "max_speed_dps": self.cfg["max_speed_dps"], "last_error": self.last_error,
                 "motion": self.motion_name,
