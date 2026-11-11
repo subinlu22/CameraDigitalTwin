@@ -6,7 +6,7 @@ using UnityEngine;
 //
 // 흐름: 물리 단계마다 → 집게 손가락 사이 상자 안에 뚜껑(Rigidbody)이 있는지 봄
 //       → 집게 목표 각도가 closeDeg보다 작아지면(닫는 중) 그 뚜껑을 집게에 붙임 (물리 끄고 집게를 따라다님)
-//       → 집게 목표 각도가 openDeg보다 커지면(여는 중) 놓음 (물리 다시 켬 → 떨어짐 → 벨트가 옮김)
+//       → 집게 목표 각도가 openDeg보다 커지면(여는 중) 반듯하게 세워서 바로 아래 면(벨트·탁자)에 올려놓음 → 벨트가 옮김
 // ※ 실제 손가락 마찰로 잡으면 유니티 물리에서 미끄러지거나 튀어서, 학습용 시뮬레이터에서 흔히 쓰는 "닫으면 붙이기" 방식
 // ※ 집게 충돌 모양(볼록 덩어리)이 손가락 사이를 막아서 뚜껑을 밀어내므로, 뚜껑과 집게 손가락은 서로 안 부딪히게 함
 // ※ 잡는 동안 움직이는 집게는 뚜껑 폭에서 멈추게 (관절 하한을 잠깐 그 각도로)
@@ -20,11 +20,12 @@ public class GripperGrab : MonoBehaviour
 
     [Header("잡는 곳 (집게 링크 기준, URDF 방향 m) — 손가락 사이")]
     public Vector3 zoneCenterRos = new Vector3(-0.008f, 0f, -0.105f);
-    public Vector3 zoneHalfRos = new Vector3(0.025f, 0.03f, 0.03f);
+    public Vector3 zoneHalfRos = new Vector3(0.035f, 0.04f, 0.04f);   // 11/11 넓힘 (리더로 맞추기 쉽게)
 
     [Header("집게 각도 (도)")]
-    public float closeDeg = 5f;    // 목표 각도가 이보다 작아지면 잡기
-    public float openDeg = 15f;    // 목표 각도가 이보다 커지면 놓기
+    public float closeDeg = 10f;   // 목표 각도가 이보다 작아지면 잡기 (11/11: 5→10, 끝까지 안 쥐어도 잡힘)
+    public float openDeg = 18f;    // 목표 각도가 이보다 커지면 놓기
+    public float dropSearch = 0.15f;  // 놓을 때 이 거리(m) 안에 아래 면이 있으면 그 위에 반듯이 올려놓음
 
     [Header("상태 (보기용)")]
     public string holding = "";
@@ -47,9 +48,13 @@ public class GripperGrab : MonoBehaviour
             if (t.name == movingJawLink) jaw = t.GetComponent<ArticulationBody>();
         }
         if (grip == null || jaw == null) { Debug.LogWarning("[집기] 집게 링크를 못 찾음"); enabled = false; return; }
-        var list = new List<Collider>(grip.GetComponentsInChildren<Collider>(true));   // 손가락 = 그리퍼 + 움직이는 집게
+        var list = new List<Collider>(grip.GetComponentsInChildren<Collider>(false));  // 손가락 = 그리퍼 + 움직이는 집게 (켜져 있는 것만)
         fingerColliders = list.ToArray();
         jawLowerLimit = jaw.xDrive.lowerLimit;
+        // 처음부터 씬의 뚜껑들(로봇 밖 Rigidbody)은 손가락과 안 부딪히게 (다가가다 튕겨 나가지 않게)
+        foreach (var rb in FindObjectsByType<Rigidbody>(FindObjectsSortMode.None))
+            if (rb.GetComponentInParent<ArticulationBody>() == null)
+                foreach (var col in rb.GetComponentsInChildren<Collider>()) IgnoreFingers(col);
     }
 
     // 유니티 방향으로 바꾸기: URDF (x, y, z) → 유니티 (−y, z, x)
@@ -88,6 +93,7 @@ public class GripperGrab : MonoBehaviour
     void Grab(Rigidbody rb)
     {
         held = rb;
+        foreach (var lc in rb.GetComponentsInChildren<Collider>()) lc.enabled = false;   // 잡는 동안 아무것과도 안 부딪힘 (손목 등과 겹쳐 튕기지 않게)
         rb.isKinematic = true;                        // 물리 끄고 집게를 따라다니게 (로봇 관절 아래 자식으로 넣으면 관절 물리가 꼬여서 안 넣음)
         heldLocalPos = grip.InverseTransformPoint(rb.position);
         heldLocalRot = Quaternion.Inverse(grip.rotation) * rb.rotation;
@@ -100,7 +106,25 @@ public class GripperGrab : MonoBehaviour
     void Release()
     {
         var rb = held;
+        // 반듯하게 세워서 놓기: 기울어진 만큼만 되돌림 (돌린 방향은 그대로)
+        Quaternion upright = Quaternion.FromToRotation(rb.transform.up, Vector3.up) * rb.rotation;
+        rb.transform.rotation = upright;
+        rb.rotation = upright;
+        // 바로 아래(벨트·탁자)를 찾아서 그 면 위에 반듯이 올려놓음 → 떨어지며 모서리에 부딪혀 뒤집히지 않게
+        Physics.SyncTransforms();
+        float halfH = 0.008f;   // 뚜껑 두께 1.6cm의 절반 (콜라이더가 꺼져 있어 bounds를 못 씀)
+        if (rb.TryGetComponent<MeshFilter>(out var mf)) halfH = mf.sharedMesh.bounds.extents.y * rb.transform.lossyScale.y;
+        Vector3 from = rb.position + Vector3.up * 0.02f;
+        var hitsDown = Physics.RaycastAll(from, Vector3.down, dropSearch + 0.02f, ~0, QueryTriggerInteraction.Ignore);
+        float best = float.MaxValue; Vector3 land = Vector3.zero; bool found = false;
+        foreach (var h in hitsDown)
+        {
+            if (h.rigidbody == rb || h.collider.GetComponentInParent<ArticulationBody>() != null) continue;
+            if (h.distance < best) { best = h.distance; land = h.point; found = true; }
+        }
+        if (found) rb.position = rb.transform.position = new Vector3(rb.position.x, land.y + halfH + 0.001f, rb.position.z);
         rb.isKinematic = false;
+        foreach (var lc in rb.GetComponentsInChildren<Collider>()) lc.enabled = true;    // 면 위에 놓은 뒤 다시 켬
         rb.linearVelocity = Vector3.zero;
         rb.angularVelocity = Vector3.zero;
         var d = jaw.xDrive; d.lowerLimit = jawLowerLimit; jaw.xDrive = d;

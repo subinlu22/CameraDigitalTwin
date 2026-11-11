@@ -11053,9 +11053,9 @@ MonoBehaviour:
   gripperLink: gripper_link
   movingJawLink: moving_jaw_so101_v1_link
   zoneCenterRos: {x: -0.008, y: 0, z: -0.105}
-  zoneHalfRos: {x: 0.025, y: 0.03, z: 0.03}
-  closeDeg: 5
-  openDeg: 15
+  zoneHalfRos: {x: 0.035, y: 0.04, z: 0.04}
+  closeDeg: 10
+  openDeg: 18
   holding: 
 --- !u!1001 &997484661
 PrefabInstance:
@@ -13347,6 +13347,14 @@ PrefabInstance:
     - target: {fileID: -773757553348712848, guid: d8465ec3c7e636749b211f2976394954, type: 3}
       propertyPath: m_LocalPosition.z
       value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: -239194131180602781, guid: d8465ec3c7e636749b211f2976394954, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0.22784254
+      objectReference: {fileID: 0}
+    - target: {fileID: -239194131180602781, guid: d8465ec3c7e636749b211f2976394954, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0.36012334
       objectReference: {fileID: 0}
     - target: {fileID: -149546551517956605, guid: d8465ec3c7e636749b211f2976394954, type: 3}
       propertyPath: m_Mesh
