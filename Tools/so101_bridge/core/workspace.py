@@ -7,6 +7,7 @@
      (유니티 메시에서 6mm마다 1개씩: config/so101_collision_points.json)
   3) 그 점들이 벨트 위 "금지 높이"보다 낮으면 위반
        - 벨트 테두리(옆 레일) 위·바깥 둘레: 레일 윗면 + rail_margin (11/11 수빈: 2cm)
+         바깥 둘레 폭 = side_margin (11/11: 0.5cm — 2cm면 쉬는 자세 집게가 이미 걸려서 줄임)
        - 벨트 안쪽(뚜껑 놓이는 곳):        벨트 면   + belt_margin (11/11 수빈: 0.5cm)
   4) 여유(clearance) = 점 높이 − 금지 높이 중 가장 작은 값. 음수면 위반
      브리지는 "다음 명령이 위반이고, 지금보다 여유가 줄어들면" 움직이지 않고 멈춤 (여유가 늘어나는 쪽은 허용)
@@ -107,11 +108,12 @@ class BeltGuard:
         self.belt_top = float(g.get("belt_top", 0))
         self.rail_margin = float(g.get("rail_margin", 0.02))
         self.belt_margin = float(g.get("belt_margin", 0.005))
+        self.side_margin = float(g.get("side_margin", self.rail_margin))   # 벨트 테두리 옆(수평) 여유
 
     def floor(self, x: float, y: float) -> float | None:
         """(x, y) 위치에서 넘으면 안 되는 높이. 벨트 근처가 아니면 None (제한 없음)"""
         fx0, fx1, fy0, fy1 = self.frame
-        m = self.rail_margin
+        m = self.side_margin
         if not (fx0 - m <= x <= fx1 + m and fy0 - m <= y <= fy1 + m):
             return None
         ix0, ix1 = self.inner_x

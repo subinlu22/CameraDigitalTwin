@@ -59,6 +59,7 @@ async function init() {
     $("#scan").textContent = "포트 찾기";
   };
   $("#mirror").onchange = e => cmd({ cmd: "mirror", on: e.target.checked });
+  $("#guard").onchange = e => cmd({ cmd: "belt_guard", on: e.target.checked });
   $$("#source button").forEach(b => b.onclick = () => cmd({ cmd: "set_source", source: b.dataset.v }));
   $("#follow").onclick = async () => {
     const dry = $("#dry").checked;
@@ -191,6 +192,13 @@ function render(st) {
 
   // 동작
   $("#mirror").checked = st.mirror;
+  if (st.belt_guard) {
+    $("#guard").checked = st.belt_guard.enabled;
+    const bg = st.belt_guard;
+    $("#guardDesc").textContent = !bg.enabled ? "꺼짐 — 흰 팔이 벨트에 닿을 수 있어요"
+      : bg.blocked ? `막힘 (${bg.blocked}) — 어깨 회전을 먼저 돌려 비켜 주세요`
+      : bg.clear_cm != null ? `벨트까지 여유 ${bg.clear_cm.toFixed(1)}cm` : "연동 중 벨트에 가까워지면 그 관절만 멈춤";
+  }
   $$("#source button").forEach(b => b.classList.toggle("on", b.dataset.v === st.source));
   $("#follow").disabled = st.follow || st.estop;
   $("#toL").disabled = $("#toRest").disabled = st.follow || st.estop || !F.connected;

@@ -498,6 +498,11 @@ class Bridge:
                 return self.disconnect(msg["role"])
             if c == "mirror":
                 return self.set_mirror(bool(msg.get("on")))
+            if c == "belt_guard":                              # 벨트 충돌 방지 켜기/끄기 (패널 스위치)
+                self.guard.enabled = bool(msg.get("on")) and self.guard.kin is not None
+                self.belt_block, self.belt_clear = None, None
+                self.log("벨트 충돌 방지 " + ("켬" if self.guard.enabled else "끔 — 흰 팔이 벨트에 닿을 수 있어요"))
+                return self._ok("벨트 충돌 방지 " + ("켬" if self.guard.enabled else "끔"))
             if c == "set_source":
                 return self.set_source(msg["source"])
             if c == "follow":
