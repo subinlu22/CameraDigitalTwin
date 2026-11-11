@@ -11038,6 +11038,25 @@ MonoBehaviour:
   - 0
   - 0
   - 0
+--- !u!114 &984964349
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 984964340}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cc3ca44b90c03c245a6b3091b410b10f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GripperGrab
+  gripperLink: gripper_link
+  movingJawLink: moving_jaw_so101_v1_link
+  zoneCenterRos: {x: -0.008, y: 0, z: -0.105}
+  zoneHalfRos: {x: 0.025, y: 0.03, z: 0.03}
+  closeDeg: 5
+  openDeg: 15
+  holding: 
 --- !u!1001 &997484661
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -25037,6 +25056,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 6160142155859459611, guid: 4a0b4462613c39948b3164dcd032265d, type: 3}
       insertIndex: -1
       addedObject: {fileID: 984964348}
+    - targetCorrespondingSourceObject: {fileID: 6160142155859459611, guid: 4a0b4462613c39948b3164dcd032265d, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 984964349}
   m_SourcePrefab: {fileID: 100100000, guid: 4a0b4462613c39948b3164dcd032265d, type: 3}
 --- !u!4 &2034667279649543025
 Transform:
