@@ -11664,12 +11664,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3e2b74f7e7189954596b1548214a08a5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DashboardUI
-  panelWidth: 380
-  glassColor: {r: 0.06, g: 0.08, b: 0.12, a: 0.55}
-  outlineColor: {r: 1, g: 1, b: 1, a: 0.22}
+  lightTheme: 1
+  realBlur: 1
+  cardWidth: 340
+  margin: 32
+  cardGap: 14
   flashFadeSeconds: 1.5
-  goodColor: {r: 0.25, g: 0.95, b: 0.5, a: 1}
-  badColor: {r: 1, g: 0.28, b: 0.28, a: 1}
 --- !u!114 &1031476191
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -24727,6 +24727,14 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 640209682948002932, guid: 4a0b4462613c39948b3164dcd032265d, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 640209682948002932, guid: 4a0b4462613c39948b3164dcd032265d, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 1.2460978
+      objectReference: {fileID: 0}
     - target: {fileID: 907532645091482488, guid: 4a0b4462613c39948b3164dcd032265d, type: 3}
       propertyPath: m_ParentAnchorPosition.x
       value: -0.024000041
@@ -24934,6 +24942,18 @@ PrefabInstance:
     - target: {fileID: 6160142155859459611, guid: 4a0b4462613c39948b3164dcd032265d, type: 3}
       propertyPath: m_Name
       value: so101_new_calib_camera
+      objectReference: {fileID: 0}
+    - target: {fileID: 6430044385244120383, guid: 4a0b4462613c39948b3164dcd032265d, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 1.3134146
+      objectReference: {fileID: 0}
+    - target: {fileID: 6430044385244120383, guid: 4a0b4462613c39948b3164dcd032265d, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6430044385244120383, guid: 4a0b4462613c39948b3164dcd032265d, type: 3}
+      propertyPath: m_LocalScale.z
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 6733870940981518970, guid: 4a0b4462613c39948b3164dcd032265d, type: 3}
       propertyPath: m_ParentAnchorPosition.x
