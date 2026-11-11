@@ -52,6 +52,7 @@ class Bridge:
             self._guard_error = ""
         self.belt_clear: float | None = None         # 지금 명령 자세의 벨트 여유 (m)
         self.belt_block: str | None = None           # 막혀 있으면 이유
+        self._belt_last_block = 0.0
         self.lock = threading.RLock()
         self.bus: dict[str, ServoBus | None] = {"leader": None, "follower": None}
         self.sources = {"leader": LeaderSource(), "unity": UnitySource(), "off": OffSource()}
@@ -445,15 +446,17 @@ class Bridge:
             self.cmd[i] = Safety.step(self.cmd[i], want, max_step)
         # [벨트 충돌 방지] 연동 중에만 (자세 이동 버튼은 어깨 먼저 돌리는 자체 경로라 제외)
         if not self.motion and self.guard.enabled:
-            ok, clear, link = self.guard.allow(prev, self.cmd)
+            # 통째로 안 되면 되는 관절만 움직임 (막힌 관절은 지금 각도에서 버팀)
+            self.cmd, blocked, clear, link = self.guard.step(prev, self.cmd, ids)
             self.belt_clear = clear
-            if not ok:
-                self.cmd = prev                              # 이번 단계는 안 움직임 (지금 자세에서 버팀)
+            now = time.perf_counter()
+            if blocked:
+                self._belt_last_block = now
                 if self.belt_block is None:
-                    self.log(f"벨트 가까움 — 멈춤 ({link}, 여유 {clear * 100:.1f}cm). 어깨 회전을 먼저 돌려 벨트에서 비켜 주세요")
+                    self.log(f"벨트 가까움 — 일부 관절 멈춤 ({link}). 어깨 회전을 먼저 돌려 벨트에서 비켜 주세요")
                 self.belt_block = link
-            elif self.belt_block is not None:
-                self.log("벨트 제한 풀림 — 다시 따라감")
+            elif self.belt_block is not None and now - self._belt_last_block > 1.0:
+                self.log("벨트 제한 풀림 — 다시 따라감")       # 1초 넘게 안 막혀야 풀림 (기록 깜빡임 방지)
                 self.belt_block = None
         if not self.dry_run:
             fc = self.calib["follower"]

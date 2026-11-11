@@ -135,6 +135,24 @@ class BeltGuard:
                     best, who = z - f, link
         return best, who
 
+    def step(self, cur: list[float], nxt: list[float], ids: list[int]) -> tuple[list[float], bool, float, str]:
+        """cur → nxt 한 단계. 통째로 안 되면 관절을 하나씩 넣어 보고 되는 것만 움직임
+        (예: 팔꿈치는 막혀도 어깨 회전은 따라감 → 벨트에서 스스로 비켜날 수 있음)
+        돌려주는 값: (실제로 갈 각도, 일부라도 막혔는지, 여유 m, 막힌 링크)"""
+        ok, clear, who = self.allow(cur, nxt)
+        if ok:
+            return list(nxt), False, clear, who
+        out = list(cur)
+        for sid in ids:                                   # 어깨 회전부터 순서대로
+            i = sid - 1
+            if nxt[i] == out[i]:
+                continue
+            trial = list(out)
+            trial[i] = nxt[i]
+            if self.allow(out, trial)[0]:
+                out = trial
+        return out, True, clear, who
+
     def allow(self, cur: list[float], nxt: list[float]) -> tuple[bool, float, str]:
         """cur → nxt로 움직여도 되는지. 위반이어도 여유가 줄지 않으면 허용 (빠져나오는 동작)"""
         c_next, who = self.clearance(nxt)
