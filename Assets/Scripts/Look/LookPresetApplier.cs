@@ -143,8 +143,12 @@ public class LookPresetApplier : MonoBehaviour
             _probe.transform.position = preset.probePosition;
             var rp = _probe.AddComponent<ReflectionProbe>();
             rp.mode = UnityEngine.Rendering.ReflectionProbeMode.Realtime;
-            rp.refreshMode = UnityEngine.Rendering.ReflectionProbeRefreshMode.ViaScripting;
-            rp.timeSlicingMode = UnityEngine.Rendering.ReflectionProbeTimeSlicingMode.NoTimeSlicing;
+            // 플레이 중엔 계속 다시 찍음 (스텐 밑판에 움직이는 로봇이 비치게). 6면을 나눠 찍어서 부담 줄임
+            rp.refreshMode = Application.isPlaying ? UnityEngine.Rendering.ReflectionProbeRefreshMode.EveryFrame
+                                                   : UnityEngine.Rendering.ReflectionProbeRefreshMode.ViaScripting;
+            rp.timeSlicingMode = Application.isPlaying ? UnityEngine.Rendering.ReflectionProbeTimeSlicingMode.IndividualFaces
+                                                       : UnityEngine.Rendering.ReflectionProbeTimeSlicingMode.NoTimeSlicing;
+            rp.boxProjection = true;   // 밑판처럼 넓은 면에서 반사가 제자리에 맺히게
             rp.size = preset.probeSize; rp.resolution = 256; rp.hdr = true; rp.importance = 10;
             rp.intensity = preset.probeIntensity;
             rp.RenderProbe();

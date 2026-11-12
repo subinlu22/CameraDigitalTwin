@@ -20,7 +20,7 @@ MonoBehaviour:
   fog: 0
   fogColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
   fogDensity: 0.02
-  sceneLightScale: 0.7
+  sceneLightScale: 0.85
   lightScales:
   - lightName: Spot Light
     scale: 0.5
@@ -37,7 +37,7 @@ MonoBehaviour:
   reflectionProbe: 1
   probePosition: {x: -3.9, y: 0.5, z: -2.3}
   probeSize: {x: 14, y: 6, z: 14}
-  probeIntensity: 0.55
+  probeIntensity: 1
   hideObjects:
   - flow
   materialSwaps: []
