@@ -11166,9 +11166,13 @@ MonoBehaviour:
   fingerBoxName: FingerBox
   squeezeDeg: 2
   releaseDeg: 4
-  minOpenDeg: -6
   touchMargin: 0.003
-  dropSearch: 0.15
+  betweenDist: 0.03
+  passThrough:
+  - flow
+  - BeltSurface
+  fingerFriction: 0.1
+  betweenDot: 0.8
   holding: 
   touching: 
 --- !u!1001 &997484661
@@ -13711,8 +13715,8 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 0.055, y: 0.048, z: 0.0223}
-  m_Center: {x: 0.014400001, y: 0.0189, z: -0.0011499999}
+  m_Size: {x: 0.055, y: 0.046, z: 0.0223}
+  m_Center: {x: 0.014400001, y: 0.0199, z: -0.0011499999}
 --- !u!1001 &1169584970
 PrefabInstance:
   m_ObjectHideFlags: 0
