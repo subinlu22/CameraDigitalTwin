@@ -80,6 +80,14 @@ public class RobotJointTester : MonoBehaviour
         }
     }
 
+    // [지금 자세에서 시작] 슬라이더·명령을 지금 목표 각도로 맞춤 (UnityToFollowerGUI가 "유니티로 조종" 누를 때 부름)
+    public void StartFromCurrentPose()
+    {
+        if (commandDeg == null || joints.Count == 0) return;
+        for (int i = 0; i < joints.Count; i++)
+            anglesDeg[i] = commandDeg[i] = joints[i].xDrive.target;
+    }
+
     // [각도 초기화] 컴포넌트 오른쪽 ⋮ 메뉴에 "각도 0으로 초기화" 항목을 만들어준다
     [ContextMenu("각도 0으로 초기화")]
     void ResetAngles()

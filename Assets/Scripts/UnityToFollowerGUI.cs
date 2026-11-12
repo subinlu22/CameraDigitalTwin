@@ -1,0 +1,264 @@
+using System;
+using System.Net;
+using System.Net.Sockets;
+using System.Text;
+using System.Threading;
+using UnityEngine;
+
+// =============================================================
+// [유니티 → 흰 팔] 게임 화면 왼쪽 아래 작은 창 — 버튼 몇 개로 "유니티 로봇을 움직이면 흰 팔이 따라오게"
+//
+// 흐름
+//   ① [유니티로 조종 시작] : 리더 미러링 끄기 → 관절 슬라이더 켜기(지금 자세 그대로) → 유니티 각도 보내기 켜기
+//                            → 패널에 "입력 소스 = 유니티, 연습 모드로 연동" 명령 (흰 팔은 아직 안 움직임)
+//   ② 표에서 6관절 "유니티 목표 ↔ 흰 팔 지금" 차이가 모두 2° 안이면 초록
+//   ③ [흰 팔 실제로 움직이기] 두 번 눌러야 시작 (실수 방지) → 패널이 흰 팔에 실제로 씀
+//   ④ 어깨 회전 슬라이더 / [+15°] [처음 각도] 버튼 → 유니티 어깨가 초당 10°로 움직이고 흰 팔이 따라감
+//   ⑤ [정지] = 흰 팔 그 자리에서 멈춤, [리더로 돌아가기] = 다 원래대로
+//
+// 패널(브리지)과는 UDP로 말함: 명령 → 5061, 상태·응답 ← 5062 (docs/so101_messages.md)
+// 키: F2 = 창 보이기/숨기기
+// =============================================================
+public class UnityToFollowerGUI : MonoBehaviour
+{
+    public bool show = true;
+    public int cmdPort = 5061;       // 브리지 명령 받는 포트
+    public int statusPort = 5062;    // 브리지 상태·응답 보내는 포트
+    public float okDiffDeg = 2f;     // 이 안이면 "같은 자세"
+
+    LeaderArmReceiver receiver;
+    RobotJointTester tester;
+    UnityTargetSender sender;
+    ArticulationBody[] joints;       // 6관절 (순서 = 슬라이더 순서)
+
+    // 브리지 상태 (다른 스레드가 채움)
+    readonly object lk = new object();
+    float[] followerDeg = new float[6];
+    bool hasStatus, gotStatus, bFollow, bDry, bEstop;
+    string bSource = "?", lastAck = "", lastError = "";
+    float statusTime = -10f;
+
+    UdpClient rx, tx;
+    Thread rxThread;
+    volatile bool running;
+    int cmdId = 1000;
+
+    enum Mode { Leader, UnityPractice, UnityReal }
+    Mode mode = Mode.Leader;
+    float armConfirmUntil = -1f;     // [흰 팔 실제로 움직이기] 두 번째 누름 기다리는 시간
+    float startPan;                  // 유니티로 조종 시작할 때 어깨 각도
+    Font font;
+    GUIStyle sBox, sLabel, sSmall, sBtn, sBig;
+
+    static readonly string[] Names = { "어깨 회전", "어깨 들기", "팔꿈치", "손목 굽힘", "손목 회전", "그리퍼" };
+
+    void Start()
+    {
+        receiver = GetComponent<LeaderArmReceiver>();
+        tester = GetComponent<RobotJointTester>();
+        sender = GetComponent<UnityTargetSender>();
+        var list = new System.Collections.Generic.List<ArticulationBody>();
+        foreach (var b in GetComponentsInChildren<ArticulationBody>())
+            if (b.jointType == ArticulationJointType.RevoluteJoint) list.Add(b);
+        joints = list.ToArray();
+        if (!receiver || !tester || !sender || joints.Length < 6)
+        { Debug.LogWarning("[유니티→흰 팔] 필요한 부품이 없음 (LeaderArmReceiver / RobotJointTester / UnityTargetSender)"); enabled = false; return; }
+
+        font = Resources.Load<Font>("Fonts/Pretendard-Medium");
+        tx = new UdpClient();
+        try
+        {
+            rx = new UdpClient(new IPEndPoint(IPAddress.Loopback, statusPort));
+            running = true;
+            rxThread = new Thread(RxLoop) { IsBackground = true };
+            rxThread.Start();
+        }
+        catch (Exception e) { lastError = $"상태 포트 {statusPort} 못 엶: {e.Message}"; }
+    }
+
+    void OnDestroy()
+    {
+        running = false;
+        try { rx?.Close(); } catch { }
+        try { tx?.Close(); } catch { }
+    }
+
+    // 브리지가 보내는 상태·응답 받기 (백그라운드)
+    void RxLoop()
+    {
+        var any = new IPEndPoint(IPAddress.Any, 0);
+        while (running)
+        {
+            try
+            {
+                string s = Encoding.UTF8.GetString(rx.Receive(ref any));
+                if (s.Contains("\"so101_ack\""))
+                {
+                    var a = JsonUtility.FromJson<Ack>(s);
+                    lock (lk) lastAck = (a.ok ? "✔ " : "✖ ") + a.msg;
+                }
+                else if (s.Contains("\"so101_status\""))
+                {
+                    var st = JsonUtility.FromJson<Status>(s);
+                    lock (lk)
+                    {
+                        if (st.follower != null && st.follower.deg != null && st.follower.deg.Length >= 6)
+                            for (int i = 0; i < 6; i++) followerDeg[i] = st.follower.deg[i];
+                        bFollow = st.follow; bDry = st.dry_run; bEstop = st.estop; bSource = st.source;
+                        hasStatus = st.follower != null && st.follower.connected;
+                        gotStatus = true;   // 메인 스레드(Update)에서 받은 시간 찍음
+                    }
+                }
+            }
+            catch (SocketException) { }
+            catch (ObjectDisposedException) { return; }
+            catch (Exception) { }
+        }
+    }
+
+    [Serializable] class Ack { public bool ok; public string msg; }
+    [Serializable] class Arm { public bool connected; public float[] deg; }
+    [Serializable] class Status { public Arm follower; public bool follow, dry_run, estop; public string source; }
+
+    void Cmd(string json)
+    {
+        string body = "{\"type\":\"so101_cmd\",\"id\":" + (cmdId++) + "," + json + "}";
+        byte[] b = Encoding.UTF8.GetBytes(body);
+        try { tx.Send(b, b.Length, "127.0.0.1", cmdPort); } catch (Exception e) { lastError = e.Message; }
+    }
+
+    void Update()
+    {
+        var kb = UnityEngine.InputSystem.Keyboard.current;     // 이 프로젝트는 새 Input System만 씀
+        if (kb != null && kb.f2Key.wasPressedThisFrame) show = !show;
+        lock (lk) if (gotStatus) { gotStatus = false; statusTime = Time.time; }
+    }
+
+    // ---------- 버튼 동작 ----------
+    void StartUnityMode()
+    {
+        receiver.enabled = false;              // 리더가 유니티 팔을 덮어쓰지 않게
+        tester.StartFromCurrentPose();         // 슬라이더 = 지금 자세 (안 튐)
+        tester.control = true;
+        tester.enabled = true;
+        sender.send = true;                    // 유니티 목표 각도 → 브리지(5063)
+        startPan = tester.anglesDeg[0];
+        Cmd("\"cmd\":\"set_source\",\"source\":\"unity\"");
+        Cmd("\"cmd\":\"follow\",\"on\":true,\"dry_run\":true");   // 연습 모드: 흰 팔엔 안 씀
+        mode = Mode.UnityPractice;
+        Debug.Log("[유니티→흰 팔] 유니티로 조종 시작 (연습 모드, 흰 팔 안 움직임)");
+    }
+
+    void GoReal()
+    {
+        Cmd("\"cmd\":\"follow\",\"on\":true,\"dry_run\":false");
+        mode = Mode.UnityReal;
+        Debug.Log("[유니티→흰 팔] 흰 팔 실제로 움직이기 시작");
+    }
+
+    void StopArm()
+    {
+        Cmd("\"cmd\":\"stop\"");
+        if (mode == Mode.UnityReal) mode = Mode.UnityPractice;
+        tester.StartFromCurrentPose();
+    }
+
+    void BackToLeader()
+    {
+        Cmd("\"cmd\":\"follow\",\"on\":false");
+        Cmd("\"cmd\":\"set_source\",\"source\":\"leader\"");
+        sender.send = false;
+        tester.enabled = false;                // 힘은 그대로 두고 슬라이더만 멈춤
+        receiver.enabled = true;               // 다시 리더 따라하기
+        mode = Mode.Leader;
+        Debug.Log("[유니티→흰 팔] 리더로 돌아감 (흰 팔 연동은 패널에서 다시 켜기)");
+    }
+
+    // ---------- 화면 ----------
+    void Styles()
+    {
+        if (sBox != null) return;
+        sBox = new GUIStyle(GUI.skin.box) { padding = new RectOffset(12, 12, 10, 10) };
+        sLabel = new GUIStyle(GUI.skin.label) { fontSize = 14, richText = true };
+        sSmall = new GUIStyle(sLabel) { fontSize = 12 };
+        sBtn = new GUIStyle(GUI.skin.button) { fontSize = 14, fixedHeight = 30 };
+        sBig = new GUIStyle(sBtn) { fontSize = 15, fontStyle = FontStyle.Bold, fixedHeight = 36 };
+        if (font) foreach (var s in new[] { sBox, sLabel, sSmall, sBtn, sBig }) s.font = font;
+    }
+
+    void OnGUI()
+    {
+        if (!show || joints == null) return;
+        Styles();
+        float w = 380, h = mode == Mode.Leader ? 120 : 450;
+        GUILayout.BeginArea(new Rect(12, Screen.height - h - 12, w, h), sBox);
+
+        float[] fol; bool has, fol2, dry, est; string src, ack, err; float age;
+        lock (lk) { fol = (float[])followerDeg.Clone(); has = hasStatus; fol2 = bFollow; dry = bDry; est = bEstop; src = bSource; ack = lastAck; err = lastError; age = Time.time - statusTime; }
+        bool live = has && age < 1.5f;
+
+        GUILayout.Label("<b>유니티 → 흰 팔</b>   <size=11>(F2 숨기기)</size>", sLabel);
+        string st = !live ? "<color=#e57373>패널 연결 안 됨 (패널 켜고 [두 팔 연결])</color>"
+                  : est ? "<color=#e57373>비상 정지 중 — 패널에서 해제</color>"
+                  : $"패널: 소스 {src} · {(fol2 ? (dry ? "연습 모드" : "<color=#ffb74d>흰 팔 움직이는 중</color>") : "연동 꺼짐")}";
+        GUILayout.Label(st, sSmall);
+
+        if (mode == Mode.Leader)
+        {
+            GUI.enabled = live && !est;
+            if (GUILayout.Button("유니티로 조종 시작  (흰 팔은 아직 안 움직임)", sBig)) StartUnityMode();
+            GUI.enabled = true;
+            GUILayout.EndArea();
+            return;
+        }
+
+        // 6관절 차이 표
+        bool allOk = live;
+        for (int i = 0; i < 6; i++)
+        {
+            float u = joints[i].xDrive.target, f = fol[i], d = Mathf.Abs(u - f);
+            bool ok = d <= okDiffDeg; if (!ok) allOk = false;
+            string c = ok ? "#81c784" : "#e57373";
+            GUILayout.Label($"{Names[i],-6}  유니티 {u,7:F1}°   흰 팔 {f,7:F1}°   <color={c}>차이 {d:F1}°</color>", sSmall);
+        }
+
+        // 실제로 움직이기
+        if (mode == Mode.UnityPractice)
+        {
+            // 차이가 크면: 유니티 로봇을 흰 팔 자세로 옮김 (유니티만 초당 10°로 움직임, 흰 팔은 그대로)
+            if (!allOk && live && GUILayout.Button("유니티를 흰 팔 자세에 맞추기  (유니티만 움직임)", sBtn))
+            {
+                for (int i = 0; i < 6; i++) tester.anglesDeg[i] = fol[i];
+                startPan = fol[0];
+            }
+            GUI.enabled = allOk && !est;
+            bool waiting = Time.time < armConfirmUntil;
+            string label = !allOk ? $"차이가 {okDiffDeg:F0}° 넘는 관절이 있어요" : waiting ? "⚠ 한 번 더 누르면 흰 팔이 움직여요" : "흰 팔 실제로 움직이기";
+            if (GUILayout.Button(label, sBig))
+            {
+                if (waiting) { GoReal(); armConfirmUntil = -1f; } else armConfirmUntil = Time.time + 3f;
+            }
+            GUI.enabled = true;
+        }
+
+        // 어깨 회전 슬라이더 (시작 각도 ±30°) — 유니티는 초당 10°로 따라감
+        GUILayout.Space(4);
+        GUILayout.Label($"어깨 회전 목표 <b>{tester.anglesDeg[0]:F1}°</b>  (시작 {startPan:F1}°, 초당 {tester.maxSpeedDps:F0}°)", sLabel);
+        tester.anglesDeg[0] = GUILayout.HorizontalSlider(tester.anglesDeg[0], startPan - 30f, startPan + 30f);
+        GUILayout.BeginHorizontal();
+        if (GUILayout.Button("처음 각도", sBtn)) tester.anglesDeg[0] = startPan;
+        if (GUILayout.Button("+15°", sBtn)) tester.anglesDeg[0] = startPan + 15f;
+        if (GUILayout.Button("−15°", sBtn)) tester.anglesDeg[0] = startPan - 15f;
+        GUILayout.EndHorizontal();
+
+        GUILayout.Space(4);
+        GUILayout.BeginHorizontal();
+        if (GUILayout.Button("정지", sBtn)) StopArm();
+        if (GUILayout.Button("비상 정지", sBtn)) { Cmd("\"cmd\":\"estop\""); StopArm(); }
+        if (GUILayout.Button("리더로 돌아가기", sBtn)) BackToLeader();
+        GUILayout.EndHorizontal();
+        if (!string.IsNullOrEmpty(ack)) GUILayout.Label(ack, sSmall);
+        if (!string.IsNullOrEmpty(err)) GUILayout.Label($"<color=#e57373>{err}</color>", sSmall);
+        GUILayout.EndArea();
+    }
+}
