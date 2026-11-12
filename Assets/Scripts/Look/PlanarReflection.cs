@@ -47,7 +47,7 @@ public class PlanarReflection : MonoBehaviour
         if (rt == null || rt.width != w || rt.height != h)
         {
             if (rt) { rt.Release(); Destroy(rt); }
-            rt = new RenderTexture(w, h, 24, RenderTextureFormat.DefaultHDR) { name = "PlanarReflection", hideFlags = HideFlags.DontSave };
+            rt = new RenderTexture(w, h, 24, RenderTextureFormat.DefaultHDR) { name = "PlanarReflection", hideFlags = HideFlags.DontSave, useMipMap = true, autoGenerateMips = true };   // 흐린 축소본(밉맵)도 자동으로 → 셰이더가 뭉개서 읽음
         }
         if (reflCam == null)
         {
