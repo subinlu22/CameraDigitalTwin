@@ -9,6 +9,7 @@ Shader "SO101/PlanarReflectionOverlay"
         _ReflectionTex ("Reflection", 2D) = "black" {}
         _Strength ("세기", Range(0, 1)) = 0.35
         _Blur ("결 번짐 (픽셀)", Range(0, 40)) = 10
+        _BlurX ("가로 번짐 비율", Range(0, 1)) = 0.5
         _FresnelPower ("비스듬할수록 (지수)", Range(0, 8)) = 2.5
         _Tint ("색", Color) = (0.92, 0.96, 1, 1)
         _EdgeFade ("가장자리 흐림", Range(0.001, 0.5)) = 0.06
@@ -26,7 +27,7 @@ Shader "SO101/PlanarReflectionOverlay"
             #include "UnityCG.cginc"
 
             sampler2D _ReflectionTex; float4 _ReflectionTex_TexelSize;
-            float _Strength, _Blur, _FresnelPower, _EdgeFade;
+            float _Strength, _Blur, _BlurX, _FresnelPower, _EdgeFade;
             fixed4 _Tint;
 
             struct v2f { float4 pos : SV_POSITION; float4 screen : TEXCOORD0; float3 worldPos : TEXCOORD1; float2 uv : TEXCOORD2; };
@@ -44,13 +45,17 @@ Shader "SO101/PlanarReflectionOverlay"
             fixed4 frag (v2f i) : SV_Target
             {
                 float2 uv = i.screen.xy / i.screen.w;
-                float step = _Blur * _ReflectionTex_TexelSize.y / 3.0;
+                // 반무광(새틴): 세로로 길게 + 가로로도 조금 번지게 (십자 모양으로 읽어서 평균)
+                float stepY = _Blur * _ReflectionTex_TexelSize.y / 3.0;
+                float stepX = _Blur * _BlurX * _ReflectionTex_TexelSize.x / 3.0;
                 float3 c = 0; float wsum = 0;
                 [unroll] for (int k = -3; k <= 3; k++)
                 {
                     float w = 1.0 - abs(k) / 4.0;
-                    c += tex2D(_ReflectionTex, uv + float2(0, k * step)).rgb * w;
-                    wsum += w;
+                    c += tex2D(_ReflectionTex, uv + float2(0, k * stepY)).rgb * w;
+                    c += tex2D(_ReflectionTex, uv + float2(k * stepX, k * stepY * 0.5)).rgb * w * 0.6;
+                    c += tex2D(_ReflectionTex, uv + float2(-k * stepX, k * stepY * 0.5)).rgb * w * 0.6;
+                    wsum += w * 2.2;
                 }
                 c /= wsum;
                 float3 viewDir = normalize(_WorldSpaceCameraPos - i.worldPos);

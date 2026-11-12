@@ -32,8 +32,8 @@ MonoBehaviour:
   backgroundColor: {r: 1, g: 1, b: 1, a: 1}
   moveCamera: 1
   cameraPosition: {x: -3.124, y: 0.307, z: -3.082}
-  cameraEuler: {x: 11.3187, y: 322.1144, z: -0.0022}
-  cameraFov: 30.000002
+  cameraEuler: {x: 11.3187, y: 325.6, z: 0}
+  cameraFov: 32
   reflectionProbe: 1
   probePosition: {x: -3.9, y: 0.5, z: -2.3}
   probeSize: {x: 14, y: 6, z: 14}

@@ -29,10 +29,11 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _Blur: 14
+    - _Blur: 26
+    - _BlurX: 0.6
     - _EdgeFade: 0.06
     - _FresnelPower: 2.5
-    - _Strength: 0.3
+    - _Strength: 0.26
     m_Colors:
     - _Tint: {r: 0.86, g: 0.9, b: 0.95, a: 1}
   m_BuildTextureStacks: []
