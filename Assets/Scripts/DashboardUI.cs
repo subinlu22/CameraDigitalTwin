@@ -17,6 +17,19 @@ using UnityEngine.UI; // Canvas, Image, Text 같은 UI 부품
 // =============================================================
 public class DashboardUI : MonoBehaviour
 {
+    [Header("화면 (끄면 집계만 하고 화면은 TwinSidePanel이 그림)")]
+    public bool buildUi = true;
+
+    // ---------- 다른 화면(TwinSidePanel)이 읽는 값 ----------
+    public int TotalCount => totalCount;
+    public int GoodCount => goodCount;
+    public int BadCount => badCount;
+    public int ColorCount(string key) => colorCounts.TryGetValue(key, out int n) ? n : 0;
+    public int DigitCount(string key) => digitCounts.TryGetValue(key, out int n) ? n : 0;
+    public float LastReceiveTime => lastReceiveTime;
+    public string Criterion => currentTarget;
+    public event Action<bool> Inspected;     // 판정 1건 (true = 양품)
+
     [Header("테마 (플레이 전에 바꾸기)")]
     public bool lightTheme = true;           // 켬 = 밝은 유리, 끔 = 어두운 유리
     public bool realBlur = true;             // 끄면 흐림 없이 반투명만
@@ -77,6 +90,7 @@ public class DashboardUI : MonoBehaviour
         foreach (string k in digitKeys) digitCounts[k] = 0;
 
         SetTheme();
+        if (!buildUi) return;     // 화면 없이 집계만
         LoadFonts();
         CreateSprites();
         BuildUi();
@@ -85,7 +99,7 @@ public class DashboardUI : MonoBehaviour
     void Start()
     {
         // 메인 카메라에 흐림 컴포넌트 (없을 때만). 흐림을 조금 세게
-        if (!realBlur || Camera.main == null) return;
+        if (!buildUi || !realBlur || Camera.main == null) return;
         var blur = Camera.main.GetComponent<DashboardGlassBlur>();
         if (blur == null) { blur = Camera.main.gameObject.AddComponent<DashboardGlassBlur>(); blur.iterations = 5; blur.spread = 1.6f; }
     }
@@ -133,6 +147,7 @@ public class DashboardUI : MonoBehaviour
         currentTarget = target;
         goodCount = 0;
         badCount = 0;
+        if (!buildUi) return;
 
         if (colorAccents.ContainsKey(target))
         {
@@ -161,6 +176,9 @@ public class DashboardUI : MonoBehaviour
         if (colorCounts.ContainsKey(color)) colorCounts[color]++;
         if (digitCounts.ContainsKey(digit)) digitCounts[digit]++;
         if (isGood) goodCount++; else badCount++;
+        lastReceiveTime = Time.time;
+        Inspected?.Invoke(isGood);
+        if (!buildUi) return;
         RefreshStats();
 
         Color flash = isGood ? good : bad;
@@ -186,6 +204,7 @@ public class DashboardUI : MonoBehaviour
 
     void Update()
     {
+        if (!buildUi) return;
         float k = 1f - Mathf.Exp(-Time.deltaTime * 8f);   // 부드럽게 따라가는 비율 (프레임 속도와 무관)
 
         // 화면 테두리 빛 서서히 빼기
@@ -239,6 +258,7 @@ public class DashboardUI : MonoBehaviour
     // 카드마다 흐린 화면 중 "카드가 있는 부분"만 잘라서 보여줌 → 카드 뒤가 흐려 보임
     void LateUpdate()
     {
+        if (!buildUi) return;
         RenderTexture blurred = DashboardGlassBlur.Blurred;
         bool on = realBlur && blurred != null;
         float sw = Mathf.Max(1, Screen.width), sh = Mathf.Max(1, Screen.height);

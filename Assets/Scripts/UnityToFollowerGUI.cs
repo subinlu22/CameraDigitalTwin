@@ -43,8 +43,40 @@ public class UnityToFollowerGUI : MonoBehaviour
     volatile bool running;
     int cmdId = 1000;
 
-    enum Mode { Leader, UnityPractice, UnityReal }
+    public enum Mode { Leader, UnityPractice, UnityReal }
     Mode mode = Mode.Leader;
+
+    // ---------- 다른 화면(TwinSidePanel)이 읽고 쓰는 값 ----------
+    public Mode CurrentMode => mode;
+    public bool Ready => joints != null && joints.Length >= 6;
+    public bool Live { get { lock (lk) return hasStatus && Time.time - statusTime < 1.5f; } }
+    public bool EStopped { get { lock (lk) return bEstop; } }
+    public float FollowerDeg(int i) { lock (lk) return followerDeg[i]; }
+    public float UnityDeg(int i) => joints[i].xDrive.target;
+    public float JointMin(int i) => joints[i].xDrive.lowerLimit;
+    public float JointMax(int i) => joints[i].xDrive.upperLimit;
+    public bool JointOk(int i) => Mathf.Abs(UnityDeg(i) - FollowerDeg(i)) <= okDiffDeg;
+    public bool AllOk { get { if (!Live) return false; for (int i = 0; i < 6; i++) if (!JointOk(i)) return false; return true; } }
+    public float StartPan => startPan;
+    public float MaxSpeed => tester ? tester.maxSpeedDps : 10f;
+    public float PanTarget { get => tester.anglesDeg[0]; set => tester.anglesDeg[0] = value; }
+    public bool WaitingConfirm => Time.time < armConfirmUntil;
+    public string LastAck { get { lock (lk) return lastAck; } }
+    public static string JointName(int i) => Names[i];
+
+    // [흰 팔 실제로 움직이기] 두 번 눌러야 시작: 첫 번째 = 3초 동안 확인 대기, 두 번째 = 시작
+    public void PressGoReal()
+    {
+        if (mode != Mode.UnityPractice || !AllOk || EStopped) return;
+        if (WaitingConfirm) { GoReal(); armConfirmUntil = -1f; } else armConfirmUntil = Time.time + 3f;
+    }
+    // 유니티를 흰 팔 자세로 옮기기 (유니티만 움직임)
+    public void MatchFollower()
+    {
+        for (int i = 0; i < 6; i++) tester.anglesDeg[i] = FollowerDeg(i);
+        startPan = FollowerDeg(0);
+    }
+    public void EStop() { Cmd("\"cmd\":\"estop\""); StopArm(); }
     float armConfirmUntil = -1f;     // [흰 팔 실제로 움직이기] 두 번째 누름 기다리는 시간
     float startPan;                  // 유니티로 조종 시작할 때 어깨 각도
     Font font;
@@ -135,7 +167,7 @@ public class UnityToFollowerGUI : MonoBehaviour
     }
 
     // ---------- 버튼 동작 ----------
-    void StartUnityMode()
+    public void StartUnityMode()
     {
         receiver.enabled = false;              // 리더가 유니티 팔을 덮어쓰지 않게
         tester.StartFromCurrentPose();         // 슬라이더 = 지금 자세 (안 튐)
@@ -144,9 +176,15 @@ public class UnityToFollowerGUI : MonoBehaviour
         sender.send = true;                    // 유니티 목표 각도 → 브리지(5063)
         startPan = tester.anglesDeg[0];
         Cmd("\"cmd\":\"set_source\",\"source\":\"unity\"");
-        Cmd("\"cmd\":\"follow\",\"on\":true,\"dry_run\":true");   // 연습 모드: 흰 팔엔 안 씀
+        // 연습 모드 연동은 0.5초 뒤에: 유니티 각도가 먼저 패널에 도착해 있어야 "신호 끊김"으로 바로 안 멈춤
+        Invoke(nameof(SendPracticeFollow), 0.5f);
         mode = Mode.UnityPractice;
         Debug.Log("[유니티→흰 팔] 유니티로 조종 시작 (연습 모드, 흰 팔 안 움직임)");
+    }
+
+    void SendPracticeFollow()
+    {
+        if (mode == Mode.UnityPractice) Cmd("\"cmd\":\"follow\",\"on\":true,\"dry_run\":true");   // 연습 모드: 흰 팔엔 안 씀
     }
 
     void GoReal()
@@ -156,15 +194,16 @@ public class UnityToFollowerGUI : MonoBehaviour
         Debug.Log("[유니티→흰 팔] 흰 팔 실제로 움직이기 시작");
     }
 
-    void StopArm()
+    public void StopArm()
     {
         Cmd("\"cmd\":\"stop\"");
         if (mode == Mode.UnityReal) mode = Mode.UnityPractice;
         tester.StartFromCurrentPose();
     }
 
-    void BackToLeader()
+    public void BackToLeader()
     {
+        CancelInvoke(nameof(SendPracticeFollow));
         Cmd("\"cmd\":\"follow\",\"on\":false");
         Cmd("\"cmd\":\"set_source\",\"source\":\"leader\"");
         sender.send = false;
