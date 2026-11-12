@@ -5218,6 +5218,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 414919247}
+  - component: {fileID: 414919248}
   m_Layer: 0
   m_Name: Workbench
   m_TagString: Untagged
@@ -5242,6 +5243,36 @@ Transform:
   - {fileID: 1693567046}
   m_Father: {fileID: 702911645}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &414919248
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 414919246}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4289cf8a817c94b4ba0768b33172b492, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ContactShadows
+  tableRendererName: 09_panel
+  shadowMaterial: {fileID: 2100000, guid: 98307d90c4a434246a293038b1e6f0e4, type: 2}
+  targets:
+  - objectName: base_so101_v2
+    opacity: 0.75
+    spread: 0.035
+    soft: 0.75
+  - objectName: cam_s_merge/Conveyer_Belt1
+    opacity: 0.6
+    spread: 0.04
+    soft: 0.6
+  - objectName: cam_s_merge/cam/pCube1
+    opacity: 0.5
+    spread: 0.03
+    soft: 0.6
+  movingParent: number
+  movingOpacity: 0.7
+  movingFadeHeight: 0.05
 --- !u!1001 &430871352
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -13775,8 +13806,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1159794775}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.11784053, y: 0.8821572, z: -0.32349846, w: 0.32134274}
-  m_LocalPosition: {x: -4.43, y: 0.7, z: -1.55}
+  m_LocalRotation: {x: 0.2102999, y: 0.75034744, z: -0.55970263, w: 0.28193185}
+  m_LocalPosition: {x: -4.08, y: 1.3, z: -1.93}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -13793,9 +13824,9 @@ Light:
   serializedVersion: 12
   m_Type: 0
   m_Color: {r: 1, g: 0.98, b: 0.95, a: 1}
-  m_Intensity: 2.7
+  m_Intensity: 3.2
   m_Range: 5
-  m_SpotAngle: 80
+  m_SpotAngle: 75
   m_InnerSpotAngle: 25
   m_CookieSize2D: {x: 0.5, y: 0.5}
   m_Shadows:
