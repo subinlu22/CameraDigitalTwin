@@ -19,6 +19,7 @@ using UnityEngine;
 //      움직임은 [가기]와 같음 (초당 10°, 크게 움직일 땐 위로 들어 벨트를 피함) → 흰 팔이 실제 모드면 흰 팔도 재생
 //      [정지] / 비상 정지 / 리더로 돌아가기 → 그 자리에서 멈춤
 //      로봇 없이 연습 중이면: 다음 자세가 집게를 닫는 자세일 때 집게 아래에 연습용 뚜껑을 놓음 (PracticeLid)
+//      녹화 동작 재생도 같음: 집게를 닫기 시작하는 장면에 도착하면 연습용 뚜껑을 놓음
 //   ⑤ [● 녹화] → [■ 멈춤] : 그동안의 6관절 움직임을 recordHz로 찍어서 "고른 그룹의 동작"으로 저장 (그룹마다 하나, 다시 녹화하면 바꿈)
 //      [▶ 동작 재생]: 첫 장면으로 [가기]처럼 안전하게 이동 → 녹화를 playSpeed(절반) 속도로 따라감
 //      관절은 여전히 초당 10° 제한 → 녹화가 더 빨랐으면 따라잡을 때까지 재생 시간을 멈추고 기다림 (모양은 그대로, 더 느리게)
@@ -69,6 +70,8 @@ public class PoseLibrary : MonoBehaviour
     float recNext;                      // 다음 장면 찍을 시각
     float motionT = -1f;                // 동작 재생: 녹화 안의 시간(초), -1 = 재생 안 함
     bool motionStarted;                 // 첫 장면에 도착해서 따라가기 시작함
+    readonly List<float> lidTimes = new List<float>();   // 동작 재생: 집게를 닫기 시작하는 시각들 (연습 뚜껑 놓을 때)
+    int lidNext;
     PracticeLid practiceLid;
     float holdUntil = -1f;              // 도착 후 머무는 중이면 끝나는 시각
 
@@ -250,8 +253,28 @@ public class PoseLibrary : MonoBehaviour
         if (!CanGo || Playing || Recording || !HasMotion) return;
         motionT = 0f;
         motionStarted = false;
+        FindGripCloses();
         arm.MoveToPose(Frame(0f));                          // 첫 장면까지는 [가기]처럼 벨트 피하는 길로
         Status = "동작 재생 — 첫 장면으로 이동";
+    }
+
+    // 녹화에서 집게가 gripCloseDeg 넘게 닫히는 곳마다 "닫기 시작한 시각"(그 전 가장 벌린 장면)을 모음
+    void FindGripCloses()
+    {
+        lidTimes.Clear(); lidNext = 0;
+        var g = Current;
+        int n = MotionFrames(g);
+        float open = g.motion[5]; int openAt = 0;
+        for (int k = 1; k < n; k++)
+        {
+            float grip = g.motion[k * 6 + 5];
+            if (grip > open) { open = grip; openAt = k; }
+            else if (grip < open - gripCloseDeg)
+            {
+                lidTimes.Add(openAt / g.motionHz);
+                open = grip; openAt = k;              // 다음에 다시 벌렸다 닫는 곳 찾기
+            }
+        }
     }
 
     // 녹화 안의 t초 자세 (앞뒤 장면 사이를 섞음)
@@ -275,6 +298,13 @@ public class PoseLibrary : MonoBehaviour
             motionStarted = true;
         }
         if (!arm.NearTarget(catchUpDeg)) return;            // 관절이 뒤처짐 → 따라잡을 때까지 시간 멈춤
+        // 로봇 없이 연습: 집게를 닫기 시작하는 장면에 도착하면 손가락 사이에 연습용 뚜껑 (순서대로 재생과 같음)
+        if (lidNext < lidTimes.Count && motionT >= lidTimes[lidNext] && arm.NearTarget(0.5f))
+        {
+            if (arm.CurrentMode == UnityToFollowerGUI.Mode.UnityPractice && practiceLid) practiceLid.PlaceBetweenFingers();
+            lidNext++;
+        }
+        else if (lidNext < lidTimes.Count && motionT >= lidTimes[lidNext]) return;   // 그 장면에 다 올 때까지 기다림
         motionT += Time.deltaTime * playSpeed;
         arm.StreamTarget(Frame(motionT));
         Status = $"동작 재생 {Mathf.Min(motionT, MotionSec):F1} / {MotionSec:F1}초 (×{playSpeed:0.#})";
