@@ -11,7 +11,8 @@ Shader "SO101/ContactShadow"
     }
     SubShader
     {
-        Tags { "Queue"="Transparent-10" "RenderType"="Transparent" "IgnoreProjector"="True" }
+        // 거울 반사 덮개(Transparent)보다 나중에 그려서 그림자가 반사에 묻히지 않게 함
+        Tags { "Queue"="Transparent+10" "RenderType"="Transparent" "IgnoreProjector"="True" }
         ZWrite Off
         Offset -1, -1
         Blend DstColor Zero

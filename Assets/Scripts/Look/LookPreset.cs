@@ -59,4 +59,26 @@ public class LookPreset : ScriptableObject
         public string objectName;  // 씬 오브젝트 이름 (예: flow)
         public Material material;
     }
+
+    // 가까이 찍을 때 그림자 정밀하게: 켜면 룩 ON 동안 픽셀 조명 수·그림자 거리·해상도(VeryHigh)를 바꾸고,
+    // 조명을 모두 ForcePixel로. 룩 끄면 원래 값으로 돌림
+    [Header("정밀 조명 (가까이 촬영용)")]
+    public bool precisionLighting;
+    [Min(1)] public int pixelLights = 8;
+    [Min(0.1f)] public float shadowDistance = 12f;
+    // rootName 오브젝트 아래에서 source 재질을 쓰는 칸만 replacement로 잠깐 바꿈 (재질 파일은 안 건드림, 끄면 원복)
+    [Header("특정 오브젝트 아래 재질만 바꾸기")]
+    public SourceMaterialSwap[] sourceMaterialSwaps;
+    [System.Serializable]
+    public struct SourceMaterialSwap
+    {
+        public string rootName;
+        public Material source;
+        public Material replacement;
+    }
+
+    // 여기 적은 오브젝트는 룩 ON 동안 "미리 구운 빛(라이트맵)"을 빼고 실시간 조명만 받음
+    // 왜: 밑판에 구운 빛이 깔려 있으면 실시간 그림자가 묻혀서 거의 안 보임 → 빼면 그림자가 또렷해짐 (끄면 원복)
+    [Header("구운 빛 빼고 실시간 조명만 받을 오브젝트 (예: 밑판 09_panel)")]
+    public string[] realtimeOnlyObjects;
 }

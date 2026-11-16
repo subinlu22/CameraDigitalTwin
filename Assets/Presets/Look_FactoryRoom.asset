@@ -14,24 +14,26 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::LookPreset
   skybox: {fileID: 2100000, guid: b67f0d303761b5242a79ef6625dce23b, type: 2}
   ambientMode: 0
-  ambientIntensity: 0.55
+  ambientIntensity: 0.35
   ambientColor: {r: 0.55, g: 0.62, b: 0.74, a: 1}
   reflectionIntensity: 1
-  fog: 0
-  fogColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
-  fogDensity: 0.02
+  fog: 1
+  fogColor: {r: 0.055, g: 0.205, b: 0.3, a: 1}
+  fogDensity: 0.085
   sceneLightScale: 0.85
   lightScales:
   - lightName: Spot Light
-    scale: 0.5
+    scale: 0.11764706
   - lightName: RingSpot
     scale: 0.5
   - lightName: Directional Light (1)
-    scale: 0.4
+    scale: 0.11764705
+  - lightName: Directional Light
+    scale: 0.3529412
   solidBackground: 0
   backgroundColor: {r: 1, g: 1, b: 1, a: 1}
   moveCamera: 1
-  cameraPosition: {x: -3.124, y: 0.307, z: -3.082}
+  cameraPosition: {x: -3.16691, y: 0.307, z: -3.11138}
   cameraEuler: {x: 11.3187, y: 325.6, z: 0}
   cameraFov: 32
   reflectionProbe: 1
@@ -41,3 +43,12 @@ MonoBehaviour:
   hideObjects:
   - flow
   materialSwaps: []
+  precisionLighting: 1
+  pixelLights: 8
+  shadowDistance: 12
+  sourceMaterialSwaps:
+  - rootName: so101_new_calib_camera
+    source: {fileID: 2100000, guid: 1c4927e1841ccf94696b52e1bd9894a2, type: 2}
+    replacement: {fileID: 2100000, guid: 0f995f9601569a5428b31b86c8727be2, type: 2}
+  realtimeOnlyObjects:
+  - 09_panel

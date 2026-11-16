@@ -15,6 +15,9 @@ using UnityEngine;
 public class PlanarReflection : MonoBehaviour
 {
     public int textureScale = 2;
+    [Min(0)] public float reflectionDistance; // 반사에 담을 거리(m). 0이면 메인 카메라가 보는 만큼 전부
+    public Color reflectionBackground = new Color(0.035f, 0.065f, 0.085f);
+    readonly float[] reflectionCullDistances = new float[32];
     public float clipPlaneOffset = 0.002f;
     public LayerMask reflectLayers = ~((1 << 4) | (1 << 5));   // Water(덮개), UI 빼고 전부
 
@@ -35,7 +38,7 @@ public class PlanarReflection : MonoBehaviour
     void OnWillRenderObject()
     {
         Camera cam = Camera.current;
-        if (!enabled || cam == null || cam != Camera.main || s_Inside || mat == null) return;
+        if (!enabled || cam == null || (cam != Camera.main && cam.cameraType != CameraType.SceneView) || s_Inside || mat == null) return;
         s_Inside = true;
         try { RenderReflection(cam); }
         finally { s_Inside = false; }
@@ -65,16 +68,40 @@ public class PlanarReflection : MonoBehaviour
         float d = -Vector3.Dot(normal, pos) - clipPlaneOffset;
         Vector4 plane = new Vector4(normal.x, normal.y, normal.z, d);
         Matrix4x4 refl = ReflectionMatrix(plane);
+        Vector3 reflectedPosition = refl.MultiplyPoint(cam.transform.position);
+        Vector3 reflectedForward = refl.MultiplyVector(cam.transform.forward);
+        Vector3 reflectedUp = refl.MultiplyVector(cam.transform.up);
+        reflCam.transform.SetPositionAndRotation(reflectedPosition, Quaternion.LookRotation(reflectedForward, reflectedUp));
         reflCam.worldToCameraMatrix = cam.worldToCameraMatrix * refl;
 
         // 판 아래(거울 뒤)는 잘라냄
         Vector4 clip = CameraSpacePlane(reflCam, pos, normal);
-        reflCam.projectionMatrix = cam.CalculateObliqueMatrix(clip);
+        if (reflectionDistance > 0f)
+        {
+            float[] sourceCullDistances = cam.layerCullDistances;
+            reflCam.farClipPlane = Mathf.Min(cam.farClipPlane, reflectionDistance);
+            reflCam.ResetProjectionMatrix();
+            reflCam.projectionMatrix = reflCam.CalculateObliqueMatrix(clip);
+            // 비스듬한 근평면 때문에 먼 쪽 경계가 틀어짐 → 거리로도 한 번 더 잘라서 먼 물체는 반사에서 뺌
+            for (int i = 0; i < reflectionCullDistances.Length; i++)
+            {
+                float sourceLimit = sourceCullDistances[i];
+                reflectionCullDistances[i] = sourceLimit > 0f ? Mathf.Min(sourceLimit, reflectionDistance) : reflectionDistance;
+            }
+            reflCam.layerCullDistances = reflectionCullDistances;
+            reflCam.layerCullSpherical = true;
+            reflCam.clearFlags = CameraClearFlags.SolidColor;
+            reflCam.backgroundColor = reflectionBackground;
+        }
+        else
+        {
+            reflCam.projectionMatrix = cam.CalculateObliqueMatrix(clip);
+        }
 
         bool oldCull = GL.invertCulling;
         GL.invertCulling = !oldCull;            // 거울이라 앞뒤가 뒤집힘
-        reflCam.Render();
-        GL.invertCulling = oldCull;
+        try { reflCam.Render(); }
+        finally { GL.invertCulling = oldCull; }
 
         mat.SetTexture(ReflTex, rt);
     }

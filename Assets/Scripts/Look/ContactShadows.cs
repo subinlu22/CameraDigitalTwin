@@ -15,6 +15,9 @@ public class ContactShadows : MonoBehaviour
     [System.Serializable]
     public class Target
     {
+        [Tooltip("바닥에 닿는 지점을 직접 지정 (있으면 렌더러 크기 대신 이 위치·크기로 그림자를 깜)")]
+        public Transform footprintAnchor;
+        public Vector2 footprintSize = new Vector2(0.08f, 0.025f);
         public string objectName;          // 씬에서 찾을 이름 (예: base_so101_v2)
         [Range(0, 1)] public float opacity = 0.65f;
         public float spread = 0.03f;       // 물체 바닥 크기보다 사방으로 이만큼(m) 더 넓게
@@ -53,11 +56,21 @@ public class ContactShadows : MonoBehaviour
 
         foreach (var t in targets)
         {
-            var go = GameObject.Find(t.objectName);
-            if (go == null) continue;
-            if (!TryFootprint(go, out Bounds b)) continue;
+            if (t.opacity <= 0f) continue;
+            Bounds b;
+            float yaw = 0f;
+            if (t.footprintAnchor)
+            {
+                b = new Bounds(t.footprintAnchor.position, new Vector3(t.footprintSize.x, 0, t.footprintSize.y));
+                yaw = t.footprintAnchor.eulerAngles.y;
+            }
+            else
+            {
+                var go = GameObject.Find(t.objectName);
+                if (!go || !TryFootprint(go, out b)) continue;
+            }
             var blob = MakeBlob($"_Shadow_{t.objectName}", out var rend);
-            Place(blob, b, t.spread, 0f);
+            Place(blob, b, t.spread, yaw);
             var mpb = new MaterialPropertyBlock(); mpb.SetFloat(OpacityId, t.opacity); mpb.SetFloat(SoftId, t.soft); rend.SetPropertyBlock(mpb);
         }
 

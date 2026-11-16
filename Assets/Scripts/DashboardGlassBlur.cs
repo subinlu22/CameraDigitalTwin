@@ -16,12 +16,14 @@ public class DashboardGlassBlur : MonoBehaviour
     [Range(0.5f, 3f)] public float spread = 1.4f;
 
     public static RenderTexture Blurred { get; private set; }
+    public static RenderTexture SceneFrame { get; private set; }
 
     Camera cam;
     Material mat;
     CommandBuffer cb;
     int w, h;
     RenderTexture[] chain;
+    RenderTexture sceneFrame;
 
     void OnEnable()
     {
@@ -56,7 +58,12 @@ public class DashboardGlassBlur : MonoBehaviour
             chain[i] = new RenderTexture(Mathf.Max(1, w / d), Mathf.Max(1, h / d), 0, RenderTextureFormat.ARGB32)
             { filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp, hideFlags = HideFlags.HideAndDontSave };
         }
+        sceneFrame = new RenderTexture(w, h, 0, RenderTextureFormat.ARGB32)
+        { name = "Equipment preview source", filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp,
+          hideFlags = HideFlags.HideAndDontSave };
         cb = new CommandBuffer { name = "Dashboard glass blur" };
+        cb.Blit(BuiltinRenderTextureType.CameraTarget, sceneFrame);
+        SceneFrame = sceneFrame;
         cb.SetGlobalFloat("_Offset", spread);
         cb.Blit(BuiltinRenderTextureType.CameraTarget, chain[0], mat, 0);
         for (int i = 1; i <= iterations; i++) cb.Blit(chain[i - 1], chain[i], mat, 0);      // 줄이며 흐림
@@ -68,6 +75,13 @@ public class DashboardGlassBlur : MonoBehaviour
     void ReleaseChain()
     {
         if (chain != null) foreach (var rt in chain) if (rt) { rt.Release(); Destroy(rt); }
+        if (sceneFrame)
+        {
+            if (SceneFrame == sceneFrame) SceneFrame = null;
+            sceneFrame.Release();
+            Destroy(sceneFrame);
+            sceneFrame = null;
+        }
         chain = null;
         Blurred = null;
     }

@@ -30,7 +30,17 @@ public class LookPresetApplier : MonoBehaviour
     readonly Dictionary<Light, float> _lights = new Dictionary<Light, float>();
     readonly Dictionary<Renderer, Material[]> _mats = new Dictionary<Renderer, Material[]>();
     readonly List<Renderer> _hidden = new List<Renderer>();
+    readonly Dictionary<Renderer, int> _lightmapIdx = new Dictionary<Renderer, int>();   // 구운 빛 뺀 오브젝트의 원래 라이트맵 번호
     GameObject _probe;
+    int _pixelLights;
+    float _shadowDistance;
+    ShadowResolution _shadowResolution;
+    readonly Dictionary<Light, LightDetailState> _lightDetails = new Dictionary<Light, LightDetailState>();
+    struct LightDetailState
+    {
+        public float bias, normalBias, nearPlane;
+        public LightRenderMode renderMode;
+    }
 
     void Start()
     {
@@ -67,6 +77,28 @@ public class LookPresetApplier : MonoBehaviour
 
     void Apply()
     {
+        // 정밀 조명: 원래 품질 설정·조명 값을 저장해 두고 바꿈 (Restore에서 되돌림)
+        if (preset.precisionLighting)
+        {
+            _pixelLights = QualitySettings.pixelLightCount;
+            _shadowDistance = QualitySettings.shadowDistance;
+            _shadowResolution = QualitySettings.shadowResolution;
+            QualitySettings.pixelLightCount = preset.pixelLights;
+            QualitySettings.shadowDistance = preset.shadowDistance;
+            QualitySettings.shadowResolution = ShadowResolution.VeryHigh;
+            _lightDetails.Clear();
+            foreach (var light in FindObjectsByType<Light>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            {
+                if (light.type != LightType.Point && light.type != LightType.Spot && light.type != LightType.Directional) continue;
+                _lightDetails[light] = new LightDetailState { bias = light.shadowBias, normalBias = light.shadowNormalBias,
+                    nearPlane = light.shadowNearPlane, renderMode = light.renderMode };
+                light.renderMode = LightRenderMode.ForcePixel;
+                if (light.shadows == LightShadows.None) continue;
+                light.shadowBias = Mathf.Min(light.shadowBias, 0.015f);
+                light.shadowNormalBias = Mathf.Min(light.shadowNormalBias, 0.05f);
+                light.shadowNearPlane = 0.02f;
+            }
+        }
         _sky = RenderSettings.skybox; _ambMode = RenderSettings.ambientMode;
         _ambInt = RenderSettings.ambientIntensity; _reflInt = RenderSettings.reflectionIntensity;
         _fog = RenderSettings.fog; _fogColor = RenderSettings.fogColor;
@@ -110,6 +142,26 @@ public class LookPresetApplier : MonoBehaviour
                 r.sharedMaterials = arr;
             }
 
+        // 특정 루트 아래 재질만 교체 (원래 배열은 _mats에 저장 → 끄면 원복)
+        if (preset.sourceMaterialSwaps != null)
+            foreach (var swap in preset.sourceMaterialSwaps)
+            {
+                var root = GameObject.Find(swap.rootName);
+                if (!root || !swap.source || !swap.replacement) continue;
+                foreach (var renderer in root.GetComponentsInChildren<Renderer>(true))
+                {
+                    var materials = renderer.sharedMaterials;
+                    bool changed = false;
+                    for (int slot = 0; slot < materials.Length; slot++)
+                        if (materials[slot] == swap.source)
+                        {
+                            if (!_mats.ContainsKey(renderer)) _mats[renderer] = renderer.sharedMaterials;
+                            materials[slot] = swap.replacement;
+                            changed = true;
+                        }
+                    if (changed) renderer.sharedMaterials = materials;
+                }
+            }
         _hidden.Clear();
         if (preset.hideObjects != null)
             foreach (var n in preset.hideObjects)
@@ -135,6 +187,18 @@ public class LookPresetApplier : MonoBehaviour
 
         if (roomRoot) roomRoot.SetActive(true);
         if (postLayer) postLayer.enabled = true;
+
+        // 구운 빛 빼기: 라이트맵 번호를 -1로 → 실시간 조명·그림자만 받음 (룸을 켠 뒤라야 이름으로 찾아짐)
+        _lightmapIdx.Clear();
+        if (preset.realtimeOnlyObjects != null)
+            foreach (var n in preset.realtimeOnlyObjects)
+            {
+                var go = GameObject.Find(n);
+                var r = go ? go.GetComponent<Renderer>() : null;
+                if (r == null) continue;
+                _lightmapIdx[r] = r.lightmapIndex;
+                r.lightmapIndex = -1;
+            }
 
         // 반사 프로브는 씬에 저장하지 않고 켤 때만 만듦 (라이트맵 굽기와 안 섞이게)
         if (preset.reflectionProbe)
@@ -163,9 +227,27 @@ public class LookPresetApplier : MonoBehaviour
         RenderSettings.fogDensity = _fogDensity; RenderSettings.fogMode = _fogMode;
         DynamicGI.UpdateEnvironment();
 
+        // 정밀 조명 원복
+        if (preset.precisionLighting)
+        {
+            QualitySettings.pixelLightCount = _pixelLights;
+            QualitySettings.shadowDistance = _shadowDistance;
+            QualitySettings.shadowResolution = _shadowResolution;
+            foreach (var item in _lightDetails)
+            {
+                if (!item.Key) continue;
+                item.Key.shadowBias = item.Value.bias;
+                item.Key.shadowNormalBias = item.Value.normalBias;
+                item.Key.shadowNearPlane = item.Value.nearPlane;
+                item.Key.renderMode = item.Value.renderMode;
+            }
+            _lightDetails.Clear();
+        }
         foreach (var kv in _lights) if (kv.Key) kv.Key.intensity = kv.Value;
         foreach (var kv in _mats) if (kv.Key) kv.Key.sharedMaterials = kv.Value;
         foreach (var r in _hidden) if (r) r.enabled = true;
+        foreach (var kv in _lightmapIdx) if (kv.Key) kv.Key.lightmapIndex = kv.Value;
+        _lightmapIdx.Clear();
 
         var cam = Camera.main;
         if (cam) { cam.clearFlags = _camClear; cam.backgroundColor = _camBg; }
