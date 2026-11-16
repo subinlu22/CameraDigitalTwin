@@ -210,7 +210,7 @@ public partial class TwinSidePanel : MonoBehaviour   // 로봇 [자세] 탭은 T
         bool halted = robot && robot.EStopped;
         var mode = ready ? robot.CurrentMode : UnityToFollowerGUI.Mode.Leader;
         string modeLabel = !ready ? "신호 없음" : halted ? "비상 정지 중" : mode == UnityToFollowerGUI.Mode.UnityReal
-            ? "실물 제어" : mode == UnityToFollowerGUI.Mode.UnityPractice ? "연습 모드" : "리더 따라가기";
+            ? "실물 제어" : mode == UnityToFollowerGUI.Mode.UnityPractice ? (robot.Offline ? "로봇 없이 연습" : "연습 모드") : "리더 따라가기";
         robotCardState.text = !ready ? "미준비" : live ? "연결됨" : "미연결";
         robotDot.color = live ? Blue : Muted;
         robotCardMeta.text = modeLabel;
@@ -248,9 +248,13 @@ public partial class TwinSidePanel : MonoBehaviour   // 로봇 [자세] 탭은 T
         }
         else jointValueText.text = "—";
 
-        primary.interactable = live && !halted && mode != UnityToFollowerGUI.Mode.UnityReal;
+        // 리더 모드: 연결 없어도 눌림 (= 로봇 없이 연습). 연습 모드에서 흰 팔 쪽 버튼은 연결돼 있고 Offline이 아닐 때만
+        bool offline = ready && robot.Offline;
+        primary.interactable = ready && !halted && (mode == UnityToFollowerGUI.Mode.Leader
+            || (mode == UnityToFollowerGUI.Mode.UnityPractice && live && !offline));
         secondary.interactable = ready && mode != UnityToFollowerGUI.Mode.Leader;
-        primaryText.text = mode == UnityToFollowerGUI.Mode.Leader ? "유니티로 조종" : mode == UnityToFollowerGUI.Mode.UnityReal
+        primaryText.text = mode == UnityToFollowerGUI.Mode.Leader ? (live ? "유니티로 조종" : "로봇 없이 연습")
+            : offline ? "유니티 팔만 움직임" : mode == UnityToFollowerGUI.Mode.UnityReal
             ? "흰 팔 움직이는 중" : !robot.AllOk ? "흰 팔에 맞추기" : robot.WaitingConfirm ? "다시 눌러 실행" : "흰 팔 움직이기";
         secondaryText.text = mode == UnityToFollowerGUI.Mode.UnityReal ? "동작 정지" : "리더로 돌아가기";
         primaryFill.color = ready && mode == UnityToFollowerGUI.Mode.UnityPractice && robot.AllOk && robot.WaitingConfirm
@@ -314,9 +318,9 @@ public partial class TwinSidePanel : MonoBehaviour   // 로봇 [자세] 탭은 T
 
     void OnPrimary()
     {
-        if (!robot || !robot.Ready || !robot.Live || robot.EStopped) return;
-        if (robot.CurrentMode == UnityToFollowerGUI.Mode.Leader) robot.StartUnityMode();
-        else if (robot.CurrentMode == UnityToFollowerGUI.Mode.UnityPractice)
+        if (!robot || !robot.Ready || robot.EStopped) return;
+        if (robot.CurrentMode == UnityToFollowerGUI.Mode.Leader) robot.StartUnityMode();   // 연결 없으면 로봇 없이 연습
+        else if (robot.CurrentMode == UnityToFollowerGUI.Mode.UnityPractice && robot.Live && !robot.Offline)
         {
             if (!robot.AllOk) robot.MatchFollower();
             else robot.PressGoReal();

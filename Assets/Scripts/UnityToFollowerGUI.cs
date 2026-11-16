@@ -16,6 +16,9 @@ using UnityEngine;
 //   ④ 관절 고르기(6개) → 그 관절 슬라이더(시작 ±30°, 관절 한계 안) / [+15°] [처음 각도] 버튼
 //      → 유니티 관절이 초당 10°로 움직이고 흰 팔이 따라감 (브리지가 안전 범위·벨트 충돌 방지로 한 번 더 자름)
 //   ⑤ [정지] = 흰 팔 그 자리에서 멈춤, [리더로 돌아가기] = 다 원래대로
+//   ※ 로봇 없이 연습 (패널·두 팔 연결 안 됨): [유니티로 조종]을 누르면 유니티 팔만 움직임 (Offline = true)
+//      → 패널에 명령을 하나도 안 보내고, 유니티 각도도 안 보냄. [흰 팔 실제로 움직이기]도 안 눌림
+//      → 흰 팔을 쓰려면 [리더로 돌아가기] 후 패널 연결하고 다시 [유니티로 조종]
 //
 // 패널(브리지)과는 UDP로 말함: 명령 → 5061, 상태·응답 ← 5062 (docs/so101_messages.md)
 // 키: F2 = 창 보이기/숨기기
@@ -52,9 +55,16 @@ public class UnityToFollowerGUI : MonoBehaviour
 
     // ---------- 다른 화면(TwinSidePanel)이 읽고 쓰는 값 ----------
     public Mode CurrentMode => mode;
+    // 로봇 없이 연습 중 (유니티로 조종을 패널 연결 없이 시작함) — 이때는 패널·흰 팔에 아무것도 안 보냄
+    public bool Offline { get; private set; }
+    // 지금 넣고 있는 목표가 슬라이더 목표에 tol° 안으로 다 왔나 (녹화 재생이 따라잡기 기다릴 때)
+    public bool NearTarget(float tol) => tester.Reached(tol);
+    // 녹화 재생: 6관절 목표를 바로 넣음 (자세 이동 순서 없이, 초당 maxSpeedDps 제한은 그대로)
+    public void StreamTarget(float[] deg) { mover.Cancel(); for (int i = 0; i < 6; i++) tester.anglesDeg[i] = Mathf.Clamp(deg[i], JointMin(i), JointMax(i)); }
     public bool Ready => joints != null && joints.Length >= 6;
     public bool Live { get { lock (lk) return hasStatus && Time.time - statusTime < 1.5f; } }
-    public bool EStopped { get { lock (lk) return bEstop; } }
+    // 비상 정지: 패널 상태가 1.5초 넘게 안 오면(로봇 없이 연습) 예전 값은 안 씀
+    public bool EStopped { get { lock (lk) return bEstop && Time.time - statusTime < 1.5f; } }
     // 흰 팔이 지금 실제로 따라 움직이는 중 (패널 연동 켜짐 + 연습 모드 아님) — 이때 자세 저장은 흰 팔 실제 각도로
     public bool FollowerMovingReal { get { lock (lk) return bFollow && !bDry; } }
     public float FollowerDeg(int i) { lock (lk) return followerDeg[i]; }
@@ -91,7 +101,7 @@ public class UnityToFollowerGUI : MonoBehaviour
     // [흰 팔 실제로 움직이기] 두 번 눌러야 시작: 첫 번째 = 3초 동안 확인 대기, 두 번째 = 시작
     public void PressGoReal()
     {
-        if (mode != Mode.UnityPractice || !AllOk || EStopped) return;
+        if (mode != Mode.UnityPractice || Offline || !AllOk || EStopped) return;
         if (WaitingConfirm) { GoReal(); armConfirmUntil = -1f; } else armConfirmUntil = Time.time + 3f;
     }
     // 유니티를 흰 팔 자세로 옮기기 (유니티만 움직임, 어깨 45° 먼저 돌리는 안전 순서)
@@ -100,7 +110,7 @@ public class UnityToFollowerGUI : MonoBehaviour
         for (int i = 0; i < 6; i++) startDeg[i] = FollowerDeg(i);
         mover.MoveTo(startDeg);
     }
-    public void EStop() { Cmd("\"cmd\":\"estop\""); StopArm(); }
+    public void EStop() { Cmd("\"cmd\":\"estop\""); StopArm(); }   // 비상 정지는 로봇 없이 연습 중에도 늘 보냄 (보내서 손해 없음)
     float armConfirmUntil = -1f;     // [흰 팔 실제로 움직이기] 두 번째 누름 기다리는 시간
     readonly float[] startDeg = new float[6];   // 관절별 시작 각도 (슬라이더 가운데)
     int selected;                    // 수동 제어로 고른 관절 (0 = 어깨 회전)
@@ -198,12 +208,21 @@ public class UnityToFollowerGUI : MonoBehaviour
     // ---------- 버튼 동작 ----------
     public void StartUnityMode()
     {
+        if (mode != Mode.Leader || EStopped) return;
+        Offline = !Live;                       // 패널·흰 팔 연결이 없으면 "로봇 없이 연습"
         receiver.enabled = false;              // 리더가 유니티 팔을 덮어쓰지 않게
         tester.StartFromCurrentPose();         // 슬라이더 = 지금 자세 (안 튐)
         tester.control = true;
         tester.enabled = true;
-        sender.send = true;                    // 유니티 목표 각도 → 브리지(5063)
         for (int i = 0; i < 6; i++) startDeg[i] = tester.anglesDeg[i];
+        if (Offline)
+        {
+            sender.send = false;               // 브리지로 아무것도 안 보냄
+            mode = Mode.UnityPractice;
+            Debug.Log("[유니티→흰 팔] 로봇 없이 연습 시작 (유니티 팔만 움직임, 패널에 명령 안 보냄)");
+            return;
+        }
+        sender.send = true;                    // 유니티 목표 각도 → 브리지(5063)
         Cmd("\"cmd\":\"set_source\",\"source\":\"unity\"");
         // 연습 모드 연동은 0.5초 뒤에: 유니티 각도가 먼저 패널에 도착해 있어야 "신호 끊김"으로 바로 안 멈춤
         Invoke(nameof(SendPracticeFollow), 0.5f);
@@ -213,7 +232,7 @@ public class UnityToFollowerGUI : MonoBehaviour
 
     void SendPracticeFollow()
     {
-        if (mode == Mode.UnityPractice) Cmd("\"cmd\":\"follow\",\"on\":true,\"dry_run\":true");   // 연습 모드: 흰 팔엔 안 씀
+        if (mode == Mode.UnityPractice && !Offline) Cmd("\"cmd\":\"follow\",\"on\":true,\"dry_run\":true");   // 연습 모드: 흰 팔엔 안 씀
     }
 
     void GoReal()
@@ -227,7 +246,7 @@ public class UnityToFollowerGUI : MonoBehaviour
 
     public void StopArm()
     {
-        Cmd("\"cmd\":\"stop\"");
+        if (!Offline) Cmd("\"cmd\":\"stop\"");
         mover.Cancel();
         if (mode == Mode.UnityReal) mode = Mode.UnityPractice;
         tester.StartFromCurrentPose();
@@ -237,8 +256,12 @@ public class UnityToFollowerGUI : MonoBehaviour
     {
         CancelInvoke(nameof(SendPracticeFollow));
         mover.Cancel();
-        Cmd("\"cmd\":\"follow\",\"on\":false");
-        Cmd("\"cmd\":\"set_source\",\"source\":\"leader\"");
+        if (!Offline)
+        {
+            Cmd("\"cmd\":\"follow\",\"on\":false");
+            Cmd("\"cmd\":\"set_source\",\"source\":\"leader\"");
+        }
+        Offline = false;
         sender.send = false;
         tester.enabled = false;                // 힘은 그대로 두고 슬라이더만 멈춤
         receiver.enabled = true;               // 다시 리더 따라하기
@@ -277,8 +300,8 @@ public class UnityToFollowerGUI : MonoBehaviour
 
         if (mode == Mode.Leader)
         {
-            GUI.enabled = live && !est;
-            if (GUILayout.Button("유니티로 조종 시작  (흰 팔은 아직 안 움직임)", sBig)) StartUnityMode();
+            GUI.enabled = !(live && est);
+            if (GUILayout.Button(live ? "유니티로 조종 시작  (흰 팔은 아직 안 움직임)" : "로봇 없이 연습 시작  (유니티 팔만)", sBig)) StartUnityMode();
             GUI.enabled = true;
             GUILayout.EndArea();
             return;
@@ -294,8 +317,9 @@ public class UnityToFollowerGUI : MonoBehaviour
             GUILayout.Label($"{Names[i],-6}  유니티 {u,7:F1}°   흰 팔 {f,7:F1}°   <color={c}>차이 {d:F1}°</color>", sSmall);
         }
 
+        if (Offline) GUILayout.Label("<color=#81c784>로봇 없이 연습 중 — 유니티 팔만 움직여요 (패널에 안 보냄)</color>", sSmall);
         // 실제로 움직이기
-        if (mode == Mode.UnityPractice)
+        if (mode == Mode.UnityPractice && !Offline)
         {
             // 차이가 크면: 유니티 로봇을 흰 팔 자세로 옮김 (유니티만 초당 10°로 움직임, 흰 팔은 그대로)
             if (!allOk && live && GUILayout.Button("유니티를 흰 팔 자세에 맞추기  (유니티만 움직임)", sBtn))
@@ -332,7 +356,7 @@ public class UnityToFollowerGUI : MonoBehaviour
         GUILayout.Space(4);
         GUILayout.BeginHorizontal();
         if (GUILayout.Button("정지", sBtn)) StopArm();
-        if (GUILayout.Button("비상 정지", sBtn)) { Cmd("\"cmd\":\"estop\""); StopArm(); }
+        if (GUILayout.Button("비상 정지", sBtn)) EStop();
         if (GUILayout.Button("리더로 돌아가기", sBtn)) BackToLeader();
         GUILayout.EndHorizontal();
         if (!string.IsNullOrEmpty(ack)) GUILayout.Label(ack, sSmall);
