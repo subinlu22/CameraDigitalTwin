@@ -16,6 +16,9 @@ using UnityEngine;
 //   보간하면 메시지 1개 간격(약 33ms)만큼 늦는 대신 매 단계 조금씩 이어서 움직임
 // ※ 미러링은 "지금 자세"만 중요해서, 밀린 옛날 메시지는 버리고 최신 것만 씀
 // ※ 0자세·방향은 10/22에 확인함: 웹 시뮬 각도 = 유니티 각도 (오프셋 0, 반전 없음)
+// ※ [안전 접근] 켤 때(플레이 시작·리더로 돌아가기) 유니티 팔과 리더 자세 차이가 크면 바로 따라가지 않고
+//   패널 자동 자세처럼 "어깨 45° 돌림 → 손목/팔 → 나머지 → 어깨 되돌림"(ArmPoseMover.SafePath)으로
+//   초당 approachSpeedDps로 다가간 뒤 미러링 시작 → ㄱ자에서 쉬는 자세로 곧장 내려가다 벨트에 끼는 것 방지
 // =============================================================
 public class LeaderArmReceiver : MonoBehaviour
 {
@@ -43,6 +46,10 @@ public class LeaderArmReceiver : MonoBehaviour
     [Header("보간 (10/23 B안: 두 메시지 사이를 시간에 맞춰 채우기)")]
     public bool interpolate = true;        // 끄면 예전처럼 메시지 올 때 바로 점프
     public float maxGapSec = 0.1f;         // 메시지 간격이 이보다 길면(끊김) 이 시간 안에 따라잡음
+
+    [Header("안전 접근 (켤 때 자세 차이가 크면 벨트를 피해서 다가감)")]
+    public float approachSpeedDps = 30f;   // 다가가는 속도 (도/초)
+    public bool Approaching => approach != null;
 
     [Header("측정 (최근 1초, 보기용)")]
     public float frozenStepRatio;   // 리더가 움직이는 중인데 목표 각도가 안 바뀐 물리 단계 비율 (끊김)
@@ -79,6 +86,9 @@ public class LeaderArmReceiver : MonoBehaviour
     float segStart, segDuration = 1f / 30f;
     double lastMsgT = -1;
     bool hasTarget;
+    bool needApproach = true;      // 켤 때 한 번: 자세 차이가 크면 안전 경로로 다가감
+    System.Collections.Generic.List<float[]> approach;   // 들를 자세들 (마지막 칸은 최신 리더 각도로 계속 바뀜)
+    int approachIdx;
 
     // 측정용
     float[] prevCmd = new float[6];
@@ -122,6 +132,9 @@ public class LeaderArmReceiver : MonoBehaviour
         Debug.Log($"[미러링] UDP 수신 대기 시작 (포트 {port})");
     }
 
+    // 다시 켤 때(유니티 조종 → 리더로 돌아가기)도 안전 접근부터
+    void OnEnable() { needApproach = true; approach = null; }
+
     // [수신 스레드] 메시지가 올 때마다 "가장 최근 메시지" 자리에 덮어씀
     void ReceiveLoop()
     {
@@ -161,6 +174,7 @@ public class LeaderArmReceiver : MonoBehaviour
         }
 
         if (!hasTarget) return;
+        if (approach != null) { StepApproach(Time.fixedDeltaTime); return; }
 
         // [보간] 출발 각도 → 최신 각도 사이에서 지금 시각에 해당하는 각도를 계산
         float a = interpolate ? Mathf.Clamp01((now - segStart) / segDuration) : 1f;
@@ -203,10 +217,44 @@ public class LeaderArmReceiver : MonoBehaviour
             fromDeg[i] = hasTarget ? cmdDeg[i] : deg;
             toDeg[i] = deg;
         }
+        if (needApproach) StartApproach();
         // 구간 시작을 한 단계 앞으로 잡음 → 메시지가 온 이 단계부터 바로 움직임
         // (now로 잡으면 이 단계의 비율이 0이라 목표가 그대로 = 메시지마다 한 번씩 멈춤)
         segStart = now - Time.fixedDeltaTime;
         hasTarget = true;
+    }
+
+    // [안전 접근 시작] 유니티 팔 지금 각도 → 리더 각도 사이 경로를 만듦. 차이가 작으면 바로 미러링
+    void StartApproach()
+    {
+        needApproach = false;
+        var now = new float[6];
+        for (int i = 0; i < joints.Length; i++)
+            now[i] = joints[i] ? joints[i].jointPosition[0] * Mathf.Rad2Deg : toDeg[i];
+        var path = ArmPoseMover.SafePath(now, toDeg);
+        if (path.Count <= 1) return;
+        approach = path; approachIdx = 0;
+        for (int i = 0; i < joints.Length; i++) cmdDeg[i] = now[i];
+        Debug.Log($"[미러링] 리더 자세와 차이가 커서 벨트를 피해서 다가감 ({path.Count}단계, 초당 {approachSpeedDps}°)");
+    }
+
+    // [안전 접근 한 단계] 지금 들를 자세 쪽으로 초당 approachSpeedDps만큼. 마지막 칸은 최신 리더 각도
+    void StepApproach(float dt)
+    {
+        bool last = approachIdx == approach.Count - 1;
+        float[] goal = last ? toDeg : approach[approachIdx];
+        bool arrived = true;
+        for (int i = 0; i < joints.Length; i++)
+        {
+            cmdDeg[i] = Mathf.MoveTowards(cmdDeg[i], goal[i], approachSpeedDps * dt);
+            if (Mathf.Abs(cmdDeg[i] - goal[i]) > 0.5f) arrived = false;
+            if (joints[i] != null && (useJoint[i] || holdOthersAtZero)) SetDrive(joints[i], useJoint[i] ? cmdDeg[i] : 0f, false);
+        }
+        if (!arrived) return;
+        if (!last) { approachIdx++; return; }
+        approach = null;                                    // 도착 → 미러링 시작 (지금 각도에서 이어서)
+        for (int i = 0; i < joints.Length; i++) fromDeg[i] = cmdDeg[i];
+        Debug.Log("[미러링] 안전 접근 끝 — 리더 따라가기 시작");
     }
 
     // [측정] 1초마다: 끊김(목표가 멈춘 단계 비율), 점프 크기, 지연(리더 vs 실제 관절 각도 차이)

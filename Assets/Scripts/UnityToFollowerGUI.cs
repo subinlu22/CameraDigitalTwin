@@ -13,7 +13,8 @@ using UnityEngine;
 //                            → 패널에 "입력 소스 = 유니티, 연습 모드로 연동" 명령 (흰 팔은 아직 안 움직임)
 //   ② 표에서 6관절 "유니티 목표 ↔ 흰 팔 지금" 차이가 모두 2° 안이면 초록
 //   ③ [흰 팔 실제로 움직이기] 두 번 눌러야 시작 (실수 방지) → 패널이 흰 팔에 실제로 씀
-//   ④ 어깨 회전 슬라이더 / [+15°] [처음 각도] 버튼 → 유니티 어깨가 초당 10°로 움직이고 흰 팔이 따라감
+//   ④ 관절 고르기(6개) → 그 관절 슬라이더(시작 ±30°, 관절 한계 안) / [+15°] [처음 각도] 버튼
+//      → 유니티 관절이 초당 10°로 움직이고 흰 팔이 따라감 (브리지가 안전 범위·벨트 충돌 방지로 한 번 더 자름)
 //   ⑤ [정지] = 흰 팔 그 자리에서 멈춤, [리더로 돌아가기] = 다 원래대로
 //
 // 패널(브리지)과는 UDP로 말함: 명령 → 5061, 상태·응답 ← 5062 (docs/so101_messages.md)
@@ -25,10 +26,13 @@ public class UnityToFollowerGUI : MonoBehaviour
     public int cmdPort = 5061;       // 브리지 명령 받는 포트
     public int statusPort = 5062;    // 브리지 상태·응답 보내는 포트
     public float okDiffDeg = 2f;     // 이 안이면 "같은 자세"
+    // 쉬는 자세 = 10/23 실측 (so101_config.json rest_pose_deg와 같은 값)
+    public float[] restPoseDeg = { 0f, -107.6f, 87.2f, 71.1f, 0f, 0f };
 
     LeaderArmReceiver receiver;
     RobotJointTester tester;
     UnityTargetSender sender;
+    ArmPoseMover mover;              // 벨트에 안 닿는 순서로 자세 옮기기 (어깨 45° 먼저)
     ArticulationBody[] joints;       // 6관절 (순서 = 슬라이더 순서)
 
     // 브리지 상태 (다른 스레드가 채움)
@@ -57,9 +61,25 @@ public class UnityToFollowerGUI : MonoBehaviour
     public float JointMax(int i) => joints[i].xDrive.upperLimit;
     public bool JointOk(int i) => Mathf.Abs(UnityDeg(i) - FollowerDeg(i)) <= okDiffDeg;
     public bool AllOk { get { if (!Live) return false; for (int i = 0; i < 6; i++) if (!JointOk(i)) return false; return true; } }
-    public float StartPan => startPan;
     public float MaxSpeed => tester ? tester.maxSpeedDps : 10f;
-    public float PanTarget { get => tester.anglesDeg[0]; set => tester.anglesDeg[0] = value; }
+
+    // ---------- 6관절 수동 제어 (고른 관절 하나를 슬라이더·±15° 버튼으로) ----------
+    // 관절마다 "시작 각도"(유니티로 조종 시작 / 흰 팔에 맞추기 때)를 기억 → 슬라이더는 시작 ±30°, 관절 한계 안으로 자름
+    public const float SliderSpan = 30f;
+    public int Selected { get => selected; set => selected = Mathf.Clamp(value, 0, 5); }
+    public void SelectNext(int d) => selected = (selected + d + 6) % 6;
+    public float StartDeg(int i) => startDeg[i];
+    public float Target(int i) => tester.anglesDeg[i];
+    public void SetTarget(int i, float v) { mover.Cancel(); tester.anglesDeg[i] = Mathf.Clamp(v, JointMin(i), JointMax(i)); }
+    public void ResetAll() => mover.MoveTo(startDeg);          // 6관절 모두 처음 각도로 (안전 순서)
+    // ㄱ자(모두 0°) / 쉬는 자세로 — 집게는 지금 각도 그대로 (자세 이동 때 집게는 안 건드림, 브리지 goto_pose와 같음)
+    public void GoPose(float[] pose) { var g = (float[])pose.Clone(); g[5] = tester.anglesDeg[5]; mover.MoveTo(g); }
+    public void GoLPose() => GoPose(new float[6]);
+    public void GoRest() => GoPose(restPoseDeg);
+    public bool MovingPose => mover && mover.Moving;
+    public string MoveStatus => mover ? mover.Status : "";
+    public float SliderMin(int i) => Mathf.Max(JointMin(i), startDeg[i] - SliderSpan);
+    public float SliderMax(int i) => Mathf.Min(JointMax(i), startDeg[i] + SliderSpan);
     public bool WaitingConfirm => Time.time < armConfirmUntil;
     public string LastAck { get { lock (lk) return lastAck; } }
     public static string JointName(int i) => Names[i];
@@ -70,25 +90,29 @@ public class UnityToFollowerGUI : MonoBehaviour
         if (mode != Mode.UnityPractice || !AllOk || EStopped) return;
         if (WaitingConfirm) { GoReal(); armConfirmUntil = -1f; } else armConfirmUntil = Time.time + 3f;
     }
-    // 유니티를 흰 팔 자세로 옮기기 (유니티만 움직임)
+    // 유니티를 흰 팔 자세로 옮기기 (유니티만 움직임, 어깨 45° 먼저 돌리는 안전 순서)
     public void MatchFollower()
     {
-        for (int i = 0; i < 6; i++) tester.anglesDeg[i] = FollowerDeg(i);
-        startPan = FollowerDeg(0);
+        for (int i = 0; i < 6; i++) startDeg[i] = FollowerDeg(i);
+        mover.MoveTo(startDeg);
     }
     public void EStop() { Cmd("\"cmd\":\"estop\""); StopArm(); }
     float armConfirmUntil = -1f;     // [흰 팔 실제로 움직이기] 두 번째 누름 기다리는 시간
-    float startPan;                  // 유니티로 조종 시작할 때 어깨 각도
+    readonly float[] startDeg = new float[6];   // 관절별 시작 각도 (슬라이더 가운데)
+    int selected;                    // 수동 제어로 고른 관절 (0 = 어깨 회전)
     Font font;
     GUIStyle sBox, sLabel, sSmall, sBtn, sBig;
 
     static readonly string[] Names = { "어깨 회전", "어깨 들기", "팔꿈치", "손목 굽힘", "손목 회전", "그리퍼" };
+    static readonly string[] Short = { "회전", "들기", "팔꿈치", "손목", "손목회전", "집게" };
 
     void Start()
     {
         receiver = GetComponent<LeaderArmReceiver>();
         tester = GetComponent<RobotJointTester>();
         sender = GetComponent<UnityTargetSender>();
+        mover = GetComponent<ArmPoseMover>();
+        if (!mover) mover = gameObject.AddComponent<ArmPoseMover>();   // 씬에 없으면 실행할 때 붙임
         var list = new System.Collections.Generic.List<ArticulationBody>();
         foreach (var b in GetComponentsInChildren<ArticulationBody>())
             if (b.jointType == ArticulationJointType.RevoluteJoint) list.Add(b);
@@ -174,7 +198,7 @@ public class UnityToFollowerGUI : MonoBehaviour
         tester.control = true;
         tester.enabled = true;
         sender.send = true;                    // 유니티 목표 각도 → 브리지(5063)
-        startPan = tester.anglesDeg[0];
+        for (int i = 0; i < 6; i++) startDeg[i] = tester.anglesDeg[i];
         Cmd("\"cmd\":\"set_source\",\"source\":\"unity\"");
         // 연습 모드 연동은 0.5초 뒤에: 유니티 각도가 먼저 패널에 도착해 있어야 "신호 끊김"으로 바로 안 멈춤
         Invoke(nameof(SendPracticeFollow), 0.5f);
@@ -189,6 +213,8 @@ public class UnityToFollowerGUI : MonoBehaviour
 
     void GoReal()
     {
+        // 브리지는 연동 중이면 새 연동을 거절함 ("이미 움직이는 중") → 연습 모드 연동을 먼저 멈추고 실제로 다시 시작
+        Cmd("\"cmd\":\"stop\"");
         Cmd("\"cmd\":\"follow\",\"on\":true,\"dry_run\":false");
         mode = Mode.UnityReal;
         Debug.Log("[유니티→흰 팔] 흰 팔 실제로 움직이기 시작");
@@ -197,6 +223,7 @@ public class UnityToFollowerGUI : MonoBehaviour
     public void StopArm()
     {
         Cmd("\"cmd\":\"stop\"");
+        mover.Cancel();
         if (mode == Mode.UnityReal) mode = Mode.UnityPractice;
         tester.StartFromCurrentPose();
     }
@@ -204,6 +231,7 @@ public class UnityToFollowerGUI : MonoBehaviour
     public void BackToLeader()
     {
         CancelInvoke(nameof(SendPracticeFollow));
+        mover.Cancel();
         Cmd("\"cmd\":\"follow\",\"on\":false");
         Cmd("\"cmd\":\"set_source\",\"source\":\"leader\"");
         sender.send = false;
@@ -229,7 +257,7 @@ public class UnityToFollowerGUI : MonoBehaviour
     {
         if (!show || joints == null) return;
         Styles();
-        float w = 380, h = mode == Mode.Leader ? 120 : 450;
+        float w = 380, h = mode == Mode.Leader ? 120 : 545;
         GUILayout.BeginArea(new Rect(12, Screen.height - h - 12, w, h), sBox);
 
         float[] fol; bool has, fol2, dry, est; string src, ack, err; float age;
@@ -266,10 +294,7 @@ public class UnityToFollowerGUI : MonoBehaviour
         {
             // 차이가 크면: 유니티 로봇을 흰 팔 자세로 옮김 (유니티만 초당 10°로 움직임, 흰 팔은 그대로)
             if (!allOk && live && GUILayout.Button("유니티를 흰 팔 자세에 맞추기  (유니티만 움직임)", sBtn))
-            {
-                for (int i = 0; i < 6; i++) tester.anglesDeg[i] = fol[i];
-                startPan = fol[0];
-            }
+                MatchFollower();
             GUI.enabled = allOk && !est;
             bool waiting = Time.time < armConfirmUntil;
             string label = !allOk ? $"차이가 {okDiffDeg:F0}° 넘는 관절이 있어요" : waiting ? "⚠ 한 번 더 누르면 흰 팔이 움직여요" : "흰 팔 실제로 움직이기";
@@ -280,15 +305,24 @@ public class UnityToFollowerGUI : MonoBehaviour
             GUI.enabled = true;
         }
 
-        // 어깨 회전 슬라이더 (시작 각도 ±30°) — 유니티는 초당 10°로 따라감
+        // 관절 고르기 → 그 관절 슬라이더 (시작 각도 ±30°, 관절 한계 안) — 유니티는 초당 10°로 따라감
         GUILayout.Space(4);
-        GUILayout.Label($"어깨 회전 목표 <b>{tester.anglesDeg[0]:F1}°</b>  (시작 {startPan:F1}°, 초당 {tester.maxSpeedDps:F0}°)", sLabel);
-        tester.anglesDeg[0] = GUILayout.HorizontalSlider(tester.anglesDeg[0], startPan - 30f, startPan + 30f);
+        selected = GUILayout.Toolbar(selected, Short, sSmall);
+        int j = selected;
+        GUILayout.Label($"{Names[j]} 목표 <b>{tester.anglesDeg[j]:F1}°</b>  (시작 {startDeg[j]:F1}°, 초당 {tester.maxSpeedDps:F0}°)", sLabel);
+        float slid = GUILayout.HorizontalSlider(tester.anglesDeg[j], SliderMin(j), SliderMax(j));
+        if (slid != tester.anglesDeg[j]) SetTarget(j, slid);       // 끌었을 때만 (안 그러면 매 프레임 순서 이동이 취소됨)
         GUILayout.BeginHorizontal();
-        if (GUILayout.Button("처음 각도", sBtn)) tester.anglesDeg[0] = startPan;
-        if (GUILayout.Button("+15°", sBtn)) tester.anglesDeg[0] = startPan + 15f;
-        if (GUILayout.Button("−15°", sBtn)) tester.anglesDeg[0] = startPan - 15f;
+        if (GUILayout.Button("처음 각도", sBtn)) SetTarget(j, startDeg[j]);
+        if (GUILayout.Button("+15°", sBtn)) SetTarget(j, startDeg[j] + 15f);
+        if (GUILayout.Button("−15°", sBtn)) SetTarget(j, startDeg[j] - 15f);
         GUILayout.EndHorizontal();
+        GUILayout.BeginHorizontal();
+        if (GUILayout.Button("처음 각도로", sBtn)) ResetAll();
+        if (GUILayout.Button("ㄱ자로", sBtn)) GoLPose();
+        if (GUILayout.Button("쉬는 자세로", sBtn)) GoRest();
+        GUILayout.EndHorizontal();
+        if (MovingPose) GUILayout.Label($"<color=#ffb74d>{MoveStatus} — 어깨 45° 돌림 → 손목/팔 → 나머지 → 어깨 되돌림</color>", sSmall);
 
         GUILayout.Space(4);
         GUILayout.BeginHorizontal();

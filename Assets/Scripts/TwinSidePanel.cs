@@ -47,14 +47,17 @@ public class TwinSidePanel : MonoBehaviour
     RawImage preview;
     Text previewLabel, detailTitle, detailState, detailCaption;
     Text totalText, goodText, badText, yieldText, robotCardState, visionCardState, robotCardMeta, visionCardMeta;
-    Text currentRule, sceneState, lastReceiveText, visionTotal, visionYield, visionBad, panText;
+    Text currentRule, sceneState, lastReceiveText, visionTotal, visionYield, visionBad, jointValueText;
     Text primaryText, secondaryText, stopText;
     Image robotCard, robotEdge, visionCard, visionEdge, robotDot, visionDot, primaryFill, tabOverview, tabDetail;
     readonly Text[] colorCount = new Text[3], digitCount = new Text[3];
     readonly Text[] jointUnity = new Text[6], jointFollower = new Text[6], jointDifference = new Text[6];
     readonly Button[] stepButtons = new Button[3];
+    readonly Text[] jointName = new Text[6];
+    Button prevJoint, nextJoint;
+    Text manualJointText;
     Button primary, secondary, stop;
-    Slider panSlider;
+    Slider jointSlider;
     Device selected;
     bool detailOpen = true, narrow, dragging;
     int viewWidth, viewHeight;
@@ -228,17 +231,21 @@ public class TwinSidePanel : MonoBehaviour
         }
 
         bool canMove = ready && mode != UnityToFollowerGUI.Mode.Leader && !halted;
-        panSlider.interactable = canMove;
+        jointSlider.interactable = canMove;
         foreach (var b in stepButtons) b.interactable = canMove;
+        prevJoint.interactable = nextJoint.interactable = ready;
+        int sel = robot ? robot.Selected : 0;
+        for (int i = 0; i < 6; i++) jointName[i].color = i == sel ? BlueInk : Ink;   // 고른 관절 줄 강조
+        manualJointText.text = $"{UnityToFollowerGUI.JointName(sel)} · 초당 {(robot ? robot.MaxSpeed : 10f):F0}°";
         if (ready)
         {
-            panSlider.minValue = robot.StartPan - 30f;
-            panSlider.maxValue = robot.StartPan + 30f;
-            float pan = canMove ? robot.PanTarget : robot.UnityDeg(0);
-            panText.text = $"{pan:F1}°";
-            if (!dragging) panSlider.SetValueWithoutNotify(pan);
+            jointSlider.minValue = robot.SliderMin(sel);
+            jointSlider.maxValue = robot.SliderMax(sel);
+            float v = canMove ? robot.Target(sel) : robot.UnityDeg(sel);
+            jointValueText.text = $"{v:F1}°";
+            if (!dragging) jointSlider.SetValueWithoutNotify(v);
         }
-        else panText.text = "—";
+        else jointValueText.text = "—";
 
         primary.interactable = live && !halted && mode != UnityToFollowerGUI.Mode.UnityReal;
         secondary.interactable = ready && mode != UnityToFollowerGUI.Mode.Leader;
@@ -327,7 +334,7 @@ public class TwinSidePanel : MonoBehaviour
 
     void Step(float delta)
     {
-        if (ManualControlAvailable()) robot.PanTarget = robot.StartPan + delta;
+        if (ManualControlAvailable()) robot.SetTarget(robot.Selected, robot.StartDeg(robot.Selected) + delta);
     }
 
     void Build()
@@ -505,7 +512,7 @@ public class TwinSidePanel : MonoBehaviour
         {
             float y = rowY + i * rowHeight;
             Rule(pane, Inset, y - 2, detailContent);
-            Label(pane, UnityToFollowerGUI.JointName(i), Inset, y, 89, 29, 16, medium, Ink);
+            jointName[i] = Label(pane, UnityToFollowerGUI.JointName(i), Inset, y, 89, 29, 16, medium, Ink);
             jointUnity[i] = Label(pane, "—", Inset + 91, y, column, 29, 16, semi, Ink, TextAnchor.MiddleRight);
             jointFollower[i] = Label(pane, "—", Inset + 91 + column, y, column, 29, 15, medium, Secondary, TextAnchor.MiddleRight);
             jointDifference[i] = Label(pane, "—", Inset + 91 + 2 * column, y, column, 29, 15, medium, Muted, TextAnchor.MiddleRight);
@@ -513,9 +520,14 @@ public class TwinSidePanel : MonoBehaviour
 
         Rule(pane, Inset, 604, detailContent);
         Label(pane, "수동 제어", Inset, 616, 110, 28, 18, semi, Ink);
-        Label(pane, "어깨 회전 · 초당 10°", Inset, 646, 182, 25, 15, medium, Muted);
-        panText = Label(pane, "—", Inset + detailContent - 80, 644, 80, 27, 17, semi, Ink, TextAnchor.MiddleRight);
-        panSlider = MakeSlider(pane, Inset, 672, detailContent);
+        manualJointText = Label(pane, "어깨 회전 · 초당 10°", Inset, 646, 182, 25, 15, medium, Muted);
+        // 관절 고르기 ◀ ▶ (6관절 중 하나를 슬라이더로)
+        prevJoint = MakeButton(pane, "PrevJoint", "◀", CardFill, Border, () => { if (robot) robot.SelectNext(-1); }, out _, out _);
+        Place(prevJoint.GetComponent<RectTransform>(), Inset + detailContent - 86, 614, 40, 30);
+        nextJoint = MakeButton(pane, "NextJoint", "▶", CardFill, Border, () => { if (robot) robot.SelectNext(1); }, out _, out _);
+        Place(nextJoint.GetComponent<RectTransform>(), Inset + detailContent - 40, 614, 40, 30);
+        jointValueText = Label(pane, "—", Inset + detailContent - 80, 644, 80, 27, 17, semi, Ink, TextAnchor.MiddleRight);
+        jointSlider = MakeSlider(pane, Inset, 672, detailContent);
         float stepWidth = (detailContent - 14) / 3f;
         float[] delta = { -15f, 0, 15f };
         string[] plus = { "-15°", "처음", "+15°" };
@@ -572,7 +584,7 @@ public class TwinSidePanel : MonoBehaviour
 
     Slider MakeSlider(RectTransform parent, float x, float y, float w)
     {
-        var root = NewRect("ShoulderSlider", parent);
+        var root = NewRect("JointSlider", parent);
         Place(root, x, y, w, 38);
         var track = Img("Track", root, barSprite, new Color(1, 1, 1, .24f));
         track.raycastTarget = true;
@@ -596,7 +608,7 @@ public class TwinSidePanel : MonoBehaviour
         slider.targetGraphic = handle;
         slider.fillRect = fill.rectTransform;
         slider.handleRect = handle.rectTransform;
-        slider.onValueChanged.AddListener(value => { if (ManualControlAvailable()) robot.PanTarget = value; });
+        slider.onValueChanged.AddListener(value => { if (ManualControlAvailable()) robot.SetTarget(robot.Selected, value); });
 
         var triggers = root.gameObject.AddComponent<EventTrigger>();
         AddTrigger(triggers, EventTriggerType.PointerDown, () => dragging = true);

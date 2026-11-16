@@ -88,6 +88,22 @@ public class RobotJointTester : MonoBehaviour
             anglesDeg[i] = commandDeg[i] = joints[i].xDrive.target;
     }
 
+    // 지금 관절에 넣고 있는 목표 (천천히 따라가는 중인 값)
+    public float CommandDeg(int i) => commandDeg != null && i < commandDeg.Length ? commandDeg[i] : joints[i].xDrive.target;
+
+    // [도착했나] 지금 넣고 있는 목표가 슬라이더 각도(관절 한계로 자른 값)에 tol° 안으로 다 왔으면 true
+    public bool Reached(float tol)
+    {
+        if (commandDeg == null) return true;
+        for (int i = 0; i < joints.Count; i++)
+        {
+            var d = joints[i].xDrive;
+            float target = d.upperLimit > d.lowerLimit ? Mathf.Clamp(anglesDeg[i], d.lowerLimit, d.upperLimit) : anglesDeg[i];
+            if (Mathf.Abs(commandDeg[i] - target) > tol) return false;
+        }
+        return true;
+    }
+
     // [각도 초기화] 컴포넌트 오른쪽 ⋮ 메뉴에 "각도 0으로 초기화" 항목을 만들어준다
     [ContextMenu("각도 0으로 초기화")]
     void ResetAngles()
