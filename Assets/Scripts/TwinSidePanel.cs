@@ -4,7 +4,7 @@ using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 // 오른쪽 청록 유리 패널: 장비(로봇·카메라) 카드와 검사 현황을 실시간으로 보여줌
-public class TwinSidePanel : MonoBehaviour
+public partial class TwinSidePanel : MonoBehaviour   // 로봇 [자세] 탭은 TwinSidePanel.Poses.cs
 {
     [Min(300)] public float width = 400;
     [Min(8)] public float margin = 20;
@@ -107,6 +107,7 @@ public class TwinSidePanel : MonoBehaviour
             SetViewport(Screen.width, Screen.height);
         UpdateInspection();
         UpdateRobot();
+        UpdatePoses();
     }
 
     void SetViewport(int pixelWidth, int pixelHeight)
@@ -500,7 +501,9 @@ public class TwinSidePanel : MonoBehaviour
     }
     void BuildRobotDetail()
     {
-        var pane = robotPage;
+        // [관절 제어] [자세] 탭 — 탭 내용은 탭 높이만큼 아래로, 조종 버튼(아래 두 개)은 두 탭 공통
+        BuildRobotTabs(robotPage);
+        var pane = jointPage;
         Label(pane, "관절 상태", Inset, 330, detailContent, 30, 18, semi, Ink);
         const float rowY = 400f, rowHeight = 32f;
         float column = (detailContent - 97) / 3f;
@@ -539,10 +542,11 @@ public class TwinSidePanel : MonoBehaviour
             stepButtons[i] = button;
         }
         float half = (detailContent - 8) / 2;
-        primary = MakeButton(pane, "ControlMode", "유니티로 조종", ActiveFill, Hex(0x6593D4, .76f), OnPrimary, out primaryText, out primaryFill);
-        Place(primary.GetComponent<RectTransform>(), Inset, 780, half, 46);
-        secondary = MakeButton(pane, "StopOrFollow", "리더로 돌아가기", CardFill, Border, OnSecondary, out secondaryText, out _);
-        Place(secondary.GetComponent<RectTransform>(), Inset + half + 8, 780, half, 46);
+        primary = MakeButton(robotPage, "ControlMode", "유니티로 조종", ActiveFill, Hex(0x6593D4, .76f), OnPrimary, out primaryText, out primaryFill);
+        Place(primary.GetComponent<RectTransform>(), Inset, 780 + RobotTabH, half, 46);
+        secondary = MakeButton(robotPage, "StopOrFollow", "리더로 돌아가기", CardFill, Border, OnSecondary, out secondaryText, out _);
+        Place(secondary.GetComponent<RectTransform>(), Inset + half + 8, 780 + RobotTabH, half, 46);
+        BuildPosePage(posePage);
     }
 
     void BuildVisionDetail()

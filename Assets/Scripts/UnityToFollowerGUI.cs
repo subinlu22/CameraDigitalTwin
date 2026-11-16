@@ -55,6 +55,8 @@ public class UnityToFollowerGUI : MonoBehaviour
     public bool Ready => joints != null && joints.Length >= 6;
     public bool Live { get { lock (lk) return hasStatus && Time.time - statusTime < 1.5f; } }
     public bool EStopped { get { lock (lk) return bEstop; } }
+    // 흰 팔이 지금 실제로 따라 움직이는 중 (패널 연동 켜짐 + 연습 모드 아님) — 이때 자세 저장은 흰 팔 실제 각도로
+    public bool FollowerMovingReal { get { lock (lk) return bFollow && !bDry; } }
     public float FollowerDeg(int i) { lock (lk) return followerDeg[i]; }
     public float UnityDeg(int i) => joints[i].xDrive.target;
     public float JointMin(int i) => joints[i].xDrive.lowerLimit;
@@ -74,6 +76,7 @@ public class UnityToFollowerGUI : MonoBehaviour
     public void ResetAll() => mover.MoveTo(startDeg);          // 6관절 모두 처음 각도로 (안전 순서)
     // ㄱ자(모두 0°) / 쉬는 자세로 — 집게는 지금 각도 그대로 (자세 이동 때 집게는 안 건드림, 브리지 goto_pose와 같음)
     public void GoPose(float[] pose) { var g = (float[])pose.Clone(); g[5] = tester.anglesDeg[5]; mover.MoveTo(g); }
+    public void MoveToPose(float[] pose) => mover.MoveTo(pose);   // 저장한 자세로 (집게 포함 6관절, 안전 순서)
     public void GoLPose() => GoPose(new float[6]);
     public void GoRest() => GoPose(restPoseDeg);
     public bool MovingPose => mover && mover.Moving;
@@ -113,6 +116,7 @@ public class UnityToFollowerGUI : MonoBehaviour
         sender = GetComponent<UnityTargetSender>();
         mover = GetComponent<ArmPoseMover>();
         if (!mover) mover = gameObject.AddComponent<ArmPoseMover>();   // 씬에 없으면 실행할 때 붙임
+        if (!GetComponent<PoseLibrary>()) gameObject.AddComponent<PoseLibrary>();   // 자세 저장 창 (F3)
         var list = new System.Collections.Generic.List<ArticulationBody>();
         foreach (var b in GetComponentsInChildren<ArticulationBody>())
             if (b.jointType == ArticulationJointType.RevoluteJoint) list.Add(b);
