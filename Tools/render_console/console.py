@@ -6,7 +6,8 @@
   1) 이 PC 안에서만 보이는 작은 웹 서버(127.0.0.1:8770)를 띄우고 Edge 앱 창으로 화면(web/)을 연다
   2) 유니티가 UDP 5071로 보내는 상태(부위·프리셋 목록, 지금 값)를 받아 두었다가 화면에 넘겨준다
   3) 화면에서 고르거나 슬라이더를 움직이면 UDP 5070으로 유니티에 명령을 보낸다
-  4) 유니티가 아직 안 켜졌으면 2초마다 "hello"를 보내서, 켜지는 순간 바로 연결된다
+  4) 1초마다 "ping"을 보내서 유니티가 켜지는 순간 바로 연결된다 (콘솔이 켜져 있을 때만 유니티가 렌더 뷰를 보냄)
+  5) 유니티가 TCP 5072로 보내는 렌더 뷰(JPG)를 받아 화면 가운데에 영상(MJPEG)으로 보여 준다
 유니티 쪽은 Assets/RenderLookConsole (장면에 안 넣어도 플레이하면 자동으로 생김). 메시지 형식: docs/render_look_messages.md
 파이썬 표준 라이브러리만 씀 (설치할 것 없음)
 """
@@ -27,6 +28,8 @@ from pathlib import Path
 
 HOST, PORT = "127.0.0.1", 8770
 UNITY_PORT, LISTEN_PORT = 5070, 5071       # 콘솔 → 유니티 / 유니티 → 콘솔
+CRLF = bytes([13, 10])
+FRAME_PORT = 5072                         # 유니티 → 콘솔 렌더 뷰 (TCP, [길이 4바이트][JPG])
 ALIVE_S = 3.0                              # 이 시간 동안 소식이 없으면 "연결 끊김"
 WEB = Path(__file__).resolve().parent / "web"
 TYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8",
@@ -45,8 +48,15 @@ class UnityLink:
         self.rx.bind((HOST, LISTEN_PORT))
         self.rx.settimeout(0.5)
         self.running = True
+        self.frame, self.frame_id = None, 0
+        self.frame_cv = threading.Condition()
+        self.fsrv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.fsrv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.fsrv.bind((HOST, FRAME_PORT))
+        self.fsrv.listen(1)
         threading.Thread(target=self._receive, daemon=True).start()
         threading.Thread(target=self._hello, daemon=True).start()
+        threading.Thread(target=self._frames, daemon=True).start()
 
     def _receive(self):
         while self.running:
@@ -66,9 +76,42 @@ class UnityLink:
 
     def _hello(self):
         while self.running:
-            if not self.connected():
-                self.send({"cmd": "hello"})
-            time.sleep(2)
+            self.send({"cmd": "ping" if self.connected() else "hello"})
+            time.sleep(1)
+
+    def _frames(self):
+        """유니티 렌더 뷰 받기: 연결 하나씩, 끊기면 다시 기다림"""
+        while self.running:
+            try:
+                conn, _ = self.fsrv.accept()
+            except OSError:
+                return
+            with conn:
+                while self.running:
+                    head = self._read(conn, 4)
+                    if head is None:
+                        break
+                    jpg = self._read(conn, int.from_bytes(head, "big"))
+                    if jpg is None:
+                        break
+                    with self.frame_cv:
+                        self.frame, self.frame_id = jpg, self.frame_id + 1
+                        self.frame_cv.notify_all()
+
+    @staticmethod
+    def _read(conn, n):
+        buf = b""
+        while len(buf) < n:
+            chunk = conn.recv(n - len(buf))
+            if not chunk:
+                return None
+            buf += chunk
+        return buf
+
+    def wait_frame(self, last_id: int, timeout: float = 2.0):
+        with self.frame_cv:
+            self.frame_cv.wait_for(lambda: self.frame_id != last_id or not self.running, timeout)
+            return self.frame, self.frame_id
 
     def connected(self) -> bool:
         return time.time() - self.last < ALIVE_S
@@ -85,6 +128,9 @@ class UnityLink:
         self.running = False
         self.rx.close()
         self.tx.close()
+        self.fsrv.close()
+        with self.frame_cv:
+            self.frame_cv.notify_all()
 
 
 link: UnityLink | None = None
@@ -109,10 +155,42 @@ class Handler(BaseHTTPRequestHandler):
         path = self.path.split("?")[0]
         if path == "/api/state":
             return self._json(link.snapshot())
+        if path == "/stream":
+            return self._stream()
+        if path.startswith("/assets/"):
+            return self._asset(path[len("/assets/"):])
         f = (WEB / ("index.html" if path == "/" else path.lstrip("/"))).resolve()
         if WEB not in f.parents or not f.is_file():
             return self._send(404, b"not found", "text/plain")
         self._send(200, f.read_bytes(), TYPES.get(f.suffix, "application/octet-stream"))
+
+    def _stream(self):
+        """렌더 뷰 영상 (MJPEG): <img src="/stream">가 새 그림을 계속 받음"""
+        self.send_response(200)
+        self.send_header("Content-Type", "multipart/x-mixed-replace; boundary=frame")
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        last = -1
+        try:
+            while link.running:
+                jpg, last = link.wait_frame(last)
+                if jpg is None:
+                    continue
+                head = b"--frame" + CRLF + b"Content-Type: image/jpeg" + CRLF + b"Content-Length: %d" % len(jpg) + CRLF + CRLF
+                self.wfile.write(head + jpg + CRLF)
+        except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError, OSError):
+            pass
+
+    def _asset(self, rel: str):
+        """썸네일 등: 유니티가 알려 준 프리셋 폴더(StreamingAssets/RenderTool) 안의 파일만"""
+        state = link.snapshot()["state"]
+        if not state or not state.get("root"):
+            return self._send(404, b"no unity", "text/plain")
+        base = Path(state["root"]).resolve()
+        f = (base / urllib.request.url2pathname(rel)).resolve()
+        if base not in f.parents or not f.is_file() or f.suffix.lower() not in (".png", ".jpg", ".jpeg"):
+            return self._send(404, b"not found", "text/plain")
+        self._send(200, f.read_bytes(), "image/png" if f.suffix.lower() == ".png" else "image/jpeg")
 
     def do_POST(self):
         n = int(self.headers.get("Content-Length", 0))
@@ -136,7 +214,7 @@ def open_window(url: str) -> None:
         r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
         r"C:\Program Files\Microsoft\Edge\Application\msedge.exe") if os.path.exists(p)), None)
     if edge:
-        subprocess.Popen([edge, f"--app={url}", "--window-size=1180,860"])
+        subprocess.Popen([edge, f"--app={url}", "--window-size=1600,940"])
     else:
         webbrowser.open(url)
 

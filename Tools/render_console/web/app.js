@@ -1,225 +1,291 @@
-// 렌더 룩 콘솔 화면
-// 흐름: 0.25초마다 /api/state로 유니티 상태를 받아 목록을 그림 → 고르거나 슬라이더를 움직이면 /api/cmd로 보냄
+// 렌더 룩 콘솔 화면 (ProductRenderStudio 패널 시안과 같은 구성)
+// 흐름: 0.25초마다 /api/state로 유니티 상태를 받아 그림 → 고르거나 슬라이더·끌어놓기를 하면 /api/cmd로 보냄
+//       가운데 렌더 뷰는 /stream (유니티 카메라 그림, UI 없이)
 // 슬라이더를 움직이는 동안은 유니티 값으로 덮지 않음 (손에서 놓고 0.8초 뒤부터 다시 맞춤)
 
 const $ = (id) => document.getElementById(id);
 const LOOK_SLIDERS = [
-  ["ambient", "환경광", 0, 2, 0.05],
-  ["reflection", "반사", 0, 2, 0.05],
-  ["sceneLight", "원래 조명", 0, 2, 0.05],
-  ["exposure", "노출", -2, 2, 0.05],
-  ["contrast", "대비", -50, 50, 1],
-  ["saturation", "채도", -60, 60, 1],
-  ["bloom", "빛 번짐", 0, 1, 0.01],
+  ["ambient", "환경광", 0, 2, 0.05], ["reflection", "반사", 0, 2, 0.05], ["sceneLight", "원래 조명", 0, 2, 0.05],
+  ["exposure", "노출", -2, 2, 0.05], ["contrast", "대비", -50, 50, 1], ["saturation", "채도", -60, 60, 1], ["bloom", "빛 번짐", 0, 1, 0.01],
 ];
 const MAT_SLIDERS = [
-  ["metallic", "금속", 0, 1, 0.01],
-  ["roughness", "거칠기", 0, 1, 0.01],
-  ["normalStrength", "결 세기", 0, 1, 0.01],
-  ["tiling", "결 크기", 0.25, 4, 0.05],
+  ["metallic", "금속성", 0, 1, 0.01, "rMetal"], ["roughness", "거칠기", 0, 1, 0.01, "rRough"],
+  ["normalStrength", "결 세기", 0, 1, 0.01, "rNormal"], ["tiling", "결 크기", 0.25, 4, 0.05, null],
 ];
 const MODE_NOTE = {
-  original: "이 부위는 원래 재질 그대로예요.",
+  original: "장면에 원래 있던 재질 그대로예요.",
   replace: "프리셋 색·질감으로 바꿔요. 원래 사진 텍스처는 빠져요.",
-  keep: "원래 색·텍스처는 그대로 두고 금속·거칠기·결만 바꿔요.",
+  keep: "원래 색·텍스처는 두고 금속성·거칠기·결만 바꿔요.",
 };
 
-let S = null;            // 유니티가 보낸 마지막 상태
-let sel = null;          // 고른 부위 id
-let editAt = 0;          // 마지막으로 손댄 시각 (이 동안은 유니티 값으로 안 덮음)
-let lastSeq = -1;
-
-function post(cmd) {
-  return fetch("/api/cmd", { method: "POST", body: JSON.stringify(cmd) }).catch(() => {});
-}
-
-// 같은 종류 명령은 0.05초에 한 번만 (마지막 값은 꼭 보냄)
+let S = null, sel = null, editAt = 0, lastSeq = -1, showAuto = false, lastMsg = "";
+const fresh = () => performance.now() - editAt > 800;
+const post = (cmd) => fetch("/api/cmd", { method: "POST", body: JSON.stringify(cmd) }).catch(() => {});
 const pend = {};
-function throttled(key, make) {
+function throttled(key, make) {   // 같은 종류 명령은 0.05초에 한 번 (마지막 값은 꼭 보냄)
   editAt = performance.now();
   if (pend[key]) { pend[key].make = make; return; }
-  post(make());
-  pend[key] = { make: null };
-  setTimeout(function flush() {
-    const p = pend[key]; delete pend[key];
-    if (p && p.make) throttled(key, p.make);
-  }, 50);
+  post(make()); pend[key] = { make: null };
+  setTimeout(() => { const p = pend[key]; delete pend[key]; if (p && p.make) throttled(key, p.make); }, 50);
+}
+const hex = (c) => "#" + (c || [0.8, 0.8, 0.8]).slice(0, 3).map(v => Math.round(Math.min(1, Math.max(0, v)) * 255).toString(16).padStart(2, "0")).join("");
+const unhex = (h) => [1, 3, 5].map(i => +(parseInt(h.substr(i, 2), 16) / 255).toFixed(3));
+const fmt = (v, step) => step >= 1 ? String(Math.round(v)) : (+v).toFixed(2);
+const esc = (t) => String(t ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+// ---------------------------------------------------------------- 재질 공 그림
+// 썸네일이 있으면 그 사진, 없으면 색·금속·거칠기로 그린 공
+function cssBall(color, metal, rough) {
+  const c = hex(color), shine = Math.round((1 - rough) * 90 + 10), dark = metal > 0.5 ? 0.18 : 0.42;
+  return `background:radial-gradient(circle at 34% 28%, rgba(255,255,255,${shine / 100}) 0, rgba(255,255,255,0) ${18 + rough * 30}%),`
+       + `radial-gradient(circle at 50% 55%, ${c} 0, ${c} 45%, rgba(0,0,0,${dark}) 100%), ${c}`;
+}
+function ball(kind, x, cls = "ball") {
+  if (kind === "mat" && x.thumb) return `<img class="${cls}" src="/assets/${x.thumb}" alt="" draggable="false">`;
+  if (kind === "mat") return `<span class="${cls}" style="${cssBall(x.color, x.metallic, x.roughness)}"></span>`;
+  if (kind === "part") return `<span class="${cls}" style="${cssBall(x.color, x.metallic, 1 - x.smoothness)}"></span>`;
+  return `<span class="${cls}" style="${cssBall(x.color, x.metallic, x.roughness)}"></span>`;   // state 값
 }
 
-const fmt = (v, step) => step >= 1 ? Math.round(v) : step >= 0.05 ? (+v).toFixed(2).replace(/0$/, "") : (+v).toFixed(2);
-const toHex = (c) => "#" + (c || [0.8, 0.8, 0.8]).slice(0, 3).map(v => Math.round(Math.min(1, Math.max(0, v)) * 255).toString(16).padStart(2, "0")).join("");
-const fromHex = (h) => [1, 3, 5].map(i => +(parseInt(h.substr(i, 2), 16) / 255).toFixed(3));
-
-function sliderRow(parent, [key, label, min, max, step], onInput) {
-  const row = document.createElement("div");
-  row.className = "row";
-  row.innerHTML = `<label>${label}</label><input type="range" min="${min}" max="${max}" step="${step}"><b></b>`;
-  const input = row.querySelector("input"), out = row.querySelector("b");
-  input.dataset.key = key;
-  input.oninput = () => { out.textContent = fmt(input.value, step); onInput(key, +input.value); };
-  input.set = (v) => { input.value = v; out.textContent = fmt(v, step); };
-  parent.appendChild(row);
-  return input;
+// ---------------------------------------------------------------- 상태 읽기 도우미
+const preset = (id) => S.materials.find(m => m.id === id);
+function partState(id) {
+  return (S.states || []).find(s => s.id === id) || { id, mode: "original", preset: "", metallic: 0, roughness: 0.5, normalStrength: 0, tiling: 1, color: [0.8, 0.8, 0.8] };
+}
+function source(st) {   // orig | preset | custom
+  if (st.mode === "original") return "orig";
+  const m = preset(st.preset);
+  if (!m) return "custom";
+  const near = (a, b) => Math.abs(a - b) < 0.006;
+  return near(st.metallic, m.metallic) && near(st.roughness, m.roughness) && (st.mode === "keep" || (st.color || []).every((v, i) => near(v, m.color[i]))) ? "preset" : "custom";
+}
+const TAG = { orig: "원본", preset: "기본", custom: "커스텀" };
+function matLabel(p, st) {
+  const src = source(st), m = preset(st.preset);
+  if (src === "orig") return p.auto ? "장면 재질 그대로" : "원래 재질";
+  return (m ? m.name : st.preset) + (src === "custom" ? " (수정)" : "") + (st.mode === "keep" ? " · 텍스처 유지" : "");
+}
+function partBall(p, st, cls) {
+  const src = source(st), m = preset(st.preset);
+  if (src === "orig") return ball("part", p, cls);
+  if (src === "preset" && m && st.mode === "replace") return ball("mat", m, cls);
+  return ball("state", st.mode === "keep" ? Object.assign({}, st, { color: p.color }) : st, cls);
 }
 
-// ---------------------------------------------------------------- 조명 분위기
-const lookInputs = {};
+// ---------------------------------------------------------------- 슬라이더 (시안과 같은 모양, 파란 띠 = 프리셋 허용 범위)
+function slider(parent, [key, label, min, max, step], onInput) {
+  const el = document.createElement("div");
+  el.className = "slider";
+  el.innerHTML = `<div class="top"><strong>${label}</strong><em><span class="v"></span><span class="r"></span></em></div>
+    <div class="track"><div class="rail"></div><div class="bandv hidden"></div><input type="range" min="${min}" max="${max}" step="${step}"></div>`;
+  const input = el.querySelector("input"), v = el.querySelector(".v"), band = el.querySelector(".bandv"), r = el.querySelector(".r");
+  const pct = (x) => (x - min) / (max - min) * 100;
+  input.oninput = () => { v.textContent = fmt(input.value, step); onInput(key, +input.value); };
+  el.set = (val) => { input.value = val; v.textContent = fmt(val, step); };
+  el.range = (rg) => {
+    const ok = rg && rg.length === 2;
+    band.classList.toggle("hidden", !ok);
+    r.textContent = ok ? ` · 범위 ${+(+rg[0]).toFixed(2)}–${+(+rg[1]).toFixed(2)}` : "";
+    if (ok) { band.style.left = pct(rg[0]) + "%"; band.style.width = (pct(rg[1]) - pct(rg[0])) + "%"; }
+  };
+  el.enable = (on) => el.classList.toggle("off", !on);
+  parent.appendChild(el);
+  return el;
+}
+
+// ---------------------------------------------------------------- 룩
+const lookSl = {};
 LOOK_SLIDERS.forEach(d => {
-  lookInputs[d[0]] = sliderRow($("lookSliders"), d, () => {
+  lookSl[d[0]] = slider($("lookSliders"), d, () => {
     const look = {};
-    for (const k in lookInputs) look[k] = +lookInputs[k].value;
+    for (const k in lookSl) look[k] = +lookSl[k].querySelector("input").value;
     throttled("look", () => ({ cmd: "look_params", look }));
   });
 });
 
-function renderLooks() {
-  const box = $("looks");
-  const items = [{ id: "", name: "원래대로", note: "장면에 원래 있던 조명 그대로" }, ...S.looks];
-  box.innerHTML = "";
-  items.forEach(l => {
-    const b = document.createElement("button");
-    b.className = "item" + ((S.look || "") === l.id ? " on" : "");
-    b.innerHTML = `${l.name}<span class="sub">${l.id ? l.id : "기본"}</span>`;
-    b.onclick = () => { editAt = 0; post({ cmd: "look", id: l.id }); };
-    box.appendChild(b);
-  });
+function drawLooks() {
+  const items = [{ id: "", name: "원래 조명", note: "장면 그대로" }, ...S.looks];
+  $("lookCount").textContent = `${S.looks.length}개`;
+  $("looks").innerHTML = items.map(l => `<button class="look${(S.look || "") === l.id ? " on" : ""}" data-id="${esc(l.id)}">
+      ${l.thumb ? `<img class="ph" src="/assets/${l.thumb}" alt="">` : `<span class="ph"></span>`}
+      <b>${esc(l.name)}</b><small>${esc(l.id ? (l.note || l.id) : l.note)}</small></button>`).join("");
+  $("looks").querySelectorAll(".look").forEach(b => b.onclick = () => { editAt = 0; post({ cmd: "look", id: b.dataset.id }); });
   const cur = S.looks.find(l => l.id === S.look);
-  $("lookNote").textContent = cur ? cur.note || "" : "분위기를 고르면 아래 수치로 더 다듬을 수 있어요.";
-  const on = !!cur;
-  for (const k in lookInputs) {
-    lookInputs[k].disabled = !on;
-    if (fresh()) lookInputs[k].set(on && S.lookParams ? S.lookParams[k] : 0);
+  $("lookNote").textContent = cur ? cur.note || "" : "룩을 고르면 조명·반사·후처리가 한 번에 바뀌어요. 처음 고른 룩은 사진이 자동으로 찍혀요.";
+  $("lookHint").textContent = cur ? "움직이면 바로 반영" : "룩을 고르면 조절할 수 있어요";
+  for (const k in lookSl) {
+    lookSl[k].enable(!!cur);
+    if (fresh()) lookSl[k].set(cur && S.lookParams ? S.lookParams[k] : 0);
   }
 }
 
-// ---------------------------------------------------------------- 부위
-function partState(id) {
-  return (S.states || []).find(s => s.id === id) || { id, mode: "original", preset: "", metallic: 0, roughness: 0.5, normalStrength: 0, tiling: 1, color: [0.8, 0.8, 0.8] };
+// ---------------------------------------------------------------- 부위 목록
+function partRow(p) {
+  const st = partState(p.id), src = source(st);
+  return `<div class="part${sel === p.id && document.body.classList.contains("bench-open") ? " sel" : ""}${p.found ? "" : " gone"}" data-id="${esc(p.id)}" title="${p.found ? `${p.count}곳` : "지금 장면에 안 보여요"}">
+    ${partBall(p, st)}<div style="min-width:0"><b>${esc(p.label)}</b><small><span class="tag ${src}">${TAG[src]}</span>${esc(matLabel(p, st))}</small></div></div>`;
 }
 
-function partButton(p) {
-  const b = document.createElement("button");
-  const st = partState(p.id);
-  b.className = "item" + (sel === p.id ? " on" : "") + (st.mode !== "original" ? " changed" : "") + (p.found ? "" : " gone");
-  b.innerHTML = `${p.label}<span class="sub">${p.found ? `${p.count}곳` : "지금 장면에 안 보임"}</span>`;
-  b.onclick = () => { sel = p.id; editAt = 0; render(true); };
-  return b;
-}
-
-function renderParts() {
+function drawParts() {
   const lab = S.parts.filter(p => !p.auto), auto = S.parts.filter(p => p.auto);
+  $("labeled").innerHTML = lab.length ? lab.map(partRow).join("")
+    : `<p class="hint">이름표가 없어요. 아래 "장면에서 찾은 재질"에서 고르거나 parts/${esc(S.scene)}.json으로 이름을 붙여요.</p>`;
+  if (!lab.length) showAuto = true;
   const q = $("search").value.trim().toLowerCase();
-  $("labeled").innerHTML = "";
-  if (!lab.length) $("labeled").innerHTML = `<p class="note">이름표가 없어요. 아래 "장면에서 찾은 재질"에서 고르거나, StreamingAssets/RenderTool/parts/${S.scene}.json으로 이름을 붙일 수 있어요.</p>`;
-  lab.forEach(p => $("labeled").appendChild(partButton(p)));
-  $("auto").innerHTML = "";
-  auto.filter(p => !q || p.label.toLowerCase().includes(q)).forEach(p => $("auto").appendChild(partButton(p)));
-  $("autoCount").textContent = `${auto.length}개`;
-  if (!lab.length) $("autoBox").open = true;
+  $("toggleAuto").textContent = `${auto.length}개 ${showAuto ? "접기" : "펼치기"}`;
+  $("autoWrap").classList.toggle("hidden", !showAuto);
+  $("auto").innerHTML = showAuto ? auto.filter(p => !q || p.label.toLowerCase().includes(q)).map(partRow).join("") : "";
+  document.querySelectorAll(".part").forEach(r => {
+    r.onclick = () => { sel = r.dataset.id; editAt = 0; openBench(); };
+    dropZone(r, id => { sel = r.dataset.id; applyPreset(id); });
+  });
 }
-$("search").oninput = () => S && renderParts();
+$("toggleAuto").onclick = () => { showAuto = !showAuto; drawParts(); };
+$("search").oninput = () => drawParts();
 
-// ---------------------------------------------------------------- 재질
-const matInputs = {};
-MAT_SLIDERS.forEach(d => { matInputs[d[0]] = sliderRow($("matSliders"), d, () => sendPart(false)); });
-$("color").oninput = () => sendPart(false);
+// ---------------------------------------------------------------- 재질 작업대
+const matSl = {};
+MAT_SLIDERS.forEach(d => { matSl[d[0]] = slider($("sliders"), d, () => sendPart(false)); });
+$("c").oninput = (e) => { $("cHex").textContent = e.target.value.toUpperCase(); sendPart(false); };
 
 function current() {
   const st = partState(sel);
-  const out = { id: sel, mode: st.mode, preset: st.preset || "", color: fromHex($("color").value) };
-  for (const k in matInputs) out[k] = +matInputs[k].value;
+  const out = { id: sel, mode: st.mode, preset: st.preset || "", color: unhex($("c").value) };
+  for (const k in matSl) out[k] = +matSl[k].querySelector("input").value;
   return out;
 }
 
 function sendPart(pick, patch = {}) {
   if (!sel) return;
   const part = Object.assign(current(), patch);
-  if (pick || patch.mode) {   // 프리셋·방식을 바꾸면 바로 보냄 (슬라이더는 묶어서)
+  if (pick || patch.mode) {
     editAt = 0;
-    // 화면도 바로 바꿔 둠 (유니티 응답 오기 전 깜빡임 방지)
-    S.states = (S.states || []).filter(s => s.id !== sel).concat([part]);
+    S.states = (S.states || []).filter(s => s.id !== sel).concat([part]);   // 화면 먼저 바꿔 둠 (깜빡임 방지)
     post({ cmd: "part", part, pick });
-    renderMat();
-  } else throttled("part:" + sel, () => ({ cmd: "part", part, pick: false }));
+    drawParts(); drawBench();
+  } else {
+    S.states = (S.states || []).filter(s => s.id !== sel).concat([part]);
+    throttled("part:" + sel, () => ({ cmd: "part", part, pick: false }));
+    drawParts(); drawBenchHead();
+  }
 }
 
-document.querySelectorAll("#modes button").forEach(b => {
-  b.onclick = () => sendPart(partState(sel).mode === "original" && b.dataset.mode !== "original" && !partState(sel).preset, { mode: b.dataset.mode });
+function applyPreset(id) {
+  const st = partState(sel);
+  sendPart(true, { preset: id, mode: st.mode === "original" ? "replace" : st.mode });
+  const p = S.parts.find(x => x.id === sel), m = preset(id);
+  toast(`${p ? p.label : sel}에 ${m ? m.name : id} 적용`);
+  openBench();
+}
+
+function drawBenchHead() {
+  const p = sel && S.parts.find(x => x.id === sel);
+  if (!p) return;
+  const st = partState(sel), m = preset(st.preset);
+  $("selName").textContent = p.label;
+  $("big").innerHTML = partBall(p, st, "ball");
+  $("matName").textContent = matLabel(p, st);
+  $("matNote").textContent = st.mode === "original" ? MODE_NOTE.original : (m && m.note ? m.note : MODE_NOTE[st.mode]);
+  document.querySelectorAll("#seg button").forEach(b => b.classList.toggle("on", b.dataset.m === st.mode));
+}
+
+function drawBench() {
+  const p = sel && S.parts.find(x => x.id === sel);
+  if (!p) { document.body.classList.remove("bench-open"); return; }
+  drawBenchHead();
+  const st = partState(sel), m = preset(st.preset), on = st.mode !== "original";
+  $("rangeHint").textContent = !on ? "원본은 고칠 수 없어요 · 재질을 골라 보세요" : m ? "파란 띠 = 프리셋 권장 범위" : "";
+  $("colorRow").classList.toggle("off", st.mode !== "replace");
+  if (fresh()) { $("c").value = hex(st.mode === "keep" ? p.color : st.color); $("cHex").textContent = st.mode === "keep" ? "원래 색 유지" : $("c").value.toUpperCase(); }
+  MAT_SLIDERS.forEach(([k, , , , , rk]) => {
+    matSl[k].enable(on);
+    matSl[k].range(on && m && rk ? m[rk] : null);
+    if (fresh()) matSl[k].set(on ? st[k] : (k === "metallic" ? p.metallic : k === "roughness" ? 1 - p.smoothness : k === "tiling" ? 1 : 0));
+  });
+  $("lib").innerHTML = S.materials.map(c => `<div class="mcard${on && st.preset === c.id ? " on" : ""}" draggable="true" data-id="${esc(c.id)}" title="${esc(c.note || "")}">${ball("mat", c)}<b>${esc(c.name)}</b></div>`).join("");
+  $("lib").querySelectorAll(".mcard").forEach(c => {
+    c.addEventListener("dragstart", e => e.dataTransfer.setData("text/plain", c.dataset.id));
+    c.onclick = () => applyPreset(c.dataset.id);
+  });
+}
+
+document.querySelectorAll("#seg button").forEach(b => b.onclick = () => {
+  const st = partState(sel);
+  if (b.dataset.m === st.mode) return;
+  sendPart(b.dataset.m !== "original" && !st.preset, { mode: b.dataset.m });
 });
 
-function renderMat() {
-  const p = sel && S.parts.find(x => x.id === sel);
-  $("matPanel").classList.toggle("hidden", !p);
-  $("partHint").classList.toggle("hidden", !!p);
-  if (!p) { $("partTitle").textContent = "부위를 고르세요"; return; }
-  const st = partState(sel);
-  $("partTitle").textContent = p.label + (p.auto ? "" : "");
-  document.querySelectorAll("#modes button").forEach(b => b.classList.toggle("on", b.dataset.mode === st.mode));
-  $("modeNote").textContent = MODE_NOTE[st.mode] || "";
+function openBench() { document.body.classList.add("bench-open"); drawParts(); drawBench(); }
+$("openBench").onclick = () => { if (!sel && S) sel = (S.parts[0] || {}).id; openBench(); };
+$("closeBench").onclick = () => { document.body.classList.remove("bench-open"); drawParts(); };
 
-  const chips = $("mats");
-  chips.innerHTML = "";
-  S.materials.forEach(m => {
-    const c = document.createElement("button");
-    c.className = "chip" + (st.mode !== "original" && st.preset === m.id ? " on" : "");
-    c.title = m.note || "";
-    c.innerHTML = `<i style="background:${toHex(m.color)}"></i>${m.name}`;
-    c.onclick = () => sendPart(true, { preset: m.id, mode: st.mode === "original" ? "replace" : st.mode });
-    chips.appendChild(c);
-  });
-
-  const off = st.mode === "original";
-  for (const k in matInputs) {
-    matInputs[k].disabled = off;
-    if (fresh()) matInputs[k].set(st[k] ?? 0);
-  }
-  $("color").disabled = off || st.mode === "keep";
-  if (fresh()) $("color").value = toHex(st.color);
-  $("colorNote").textContent = st.mode === "keep" ? "텍스처 유지 중엔 원래 색을 써요" : off ? "" : "전부 바꾸기일 때만";
+function dropZone(el, onDrop) {
+  el.addEventListener("dragover", e => { e.preventDefault(); el.classList.add("drop"); });
+  el.addEventListener("dragleave", () => el.classList.remove("drop"));
+  el.addEventListener("drop", e => { e.preventDefault(); el.classList.remove("drop"); const id = e.dataTransfer.getData("text/plain"); if (id) onDrop(id); });
 }
+dropZone($("big"), id => applyPreset(id));
+dropZone($("stage"), id => { if (sel) applyPreset(id); else toast("먼저 왼쪽에서 부위를 고르세요"); });
 
-// ---------------------------------------------------------------- 위 버튼
-$("btnReset").onclick = () => { editAt = 0; post({ cmd: "reset" }); };
-$("btnRescan").onclick = () => post({ cmd: "rescan" });
-$("btnSaveLook").onclick = () => {
-  if (!S || !S.look) return toast("먼저 조명 분위기를 고르세요");
-  const name = prompt("새 룩 이름", (S.looks.find(l => l.id === S.look) || {}).name + " (조절)");
+// ---------------------------------------------------------------- 아래 버튼
+$("resetAll").onclick = () => { editAt = 0; post({ cmd: "reset" }); };
+$("resetPart").onclick = () => { if (sel) sendPart(false, { mode: "original" }); };
+$("saveLook").onclick = () => {
+  if (!S || !S.look) return toast("먼저 룩을 고르세요");
+  const name = prompt("새 룩 이름", ((S.looks.find(l => l.id === S.look) || {}).name || "") + " (조절)");
   if (name) post({ cmd: "save_look", name });
 };
-$("btnSaveMat").onclick = () => {
+$("saveMat").onclick = () => {
   const st = sel && partState(sel);
-  if (!st || st.mode === "original") return toast("부위를 고르고 재질을 먼저 입히세요");
-  const m = S.materials.find(x => x.id === st.preset);
+  if (!st || st.mode === "original") return toast("재질을 먼저 골라야 저장할 수 있어요");
+  const m = preset(st.preset);
   const name = prompt("새 재질 이름", (m ? m.name : "새 재질") + " (조절)");
   if (name) post({ cmd: "save_material", id: sel, name });
 };
-$("btnQuit").onclick = () => { if (confirm("렌더 콘솔을 끌까요? (유니티 장면은 그대로)")) fetch("/api/shutdown", { method: "POST" }).then(() => window.close()); };
 
-function toast(t) { $("msg").textContent = t; }
-const fresh = () => performance.now() - editAt > 800;
+// ---------------------------------------------------------------- 테마 · 알림
+function setTheme(t) {
+  document.documentElement.dataset.theme = t;
+  document.querySelectorAll(".toggle button").forEach(x => x.classList.toggle("on", x.dataset.t === t));
+  try { localStorage.setItem("rlc-theme", t); } catch (e) {}
+}
+document.querySelectorAll(".toggle button").forEach(b => b.onclick = () => setTheme(b.dataset.t));
+try { setTheme(localStorage.getItem("rlc-theme") || "light"); } catch (e) { setTheme("light"); }
 
-// ---------------------------------------------------------------- 받아서 그리기
-function render(force) {
-  if (!S) return;
-  $("scene").textContent = `장면 ${S.scene} · 룩 ${S.looks.length} · 재질 ${S.materials.length} · 부위 ${S.parts.length}`;
-  renderLooks(); renderParts(); renderMat();
-  if (S.msg) $("msg").textContent = S.msg;
+let toastTimer = 0;
+function toast(t) {
+  $("toastText").textContent = t; $("toast").classList.remove("fade");
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => $("toast").classList.add("fade"), 4000);
 }
 
+// ---------------------------------------------------------------- 렌더 뷰
+let viewOn = false;
+function startView() {
+  if (viewOn) return;
+  viewOn = true;
+  const img = $("view");
+  img.onload = () => { img.classList.remove("hidden"); $("empty").classList.add("hidden"); };
+  img.onerror = () => { img.classList.add("hidden"); $("empty").classList.remove("hidden"); viewOn = false; };
+  img.src = "/stream?" + Date.now();
+}
+
+// ---------------------------------------------------------------- 받아서 그리기
 async function poll() {
   try {
     const r = await (await fetch("/api/state")).json();
-    const c = $("conn");
-    c.textContent = r.connected ? "유니티 연결됨" : (r.state ? "연결 끊김 — 유니티 플레이 중인지 확인" : "유니티 기다리는 중 — 플레이를 눌러 주세요");
-    c.className = "pill " + (r.connected ? "on" : "off");
-    if (r.state && (r.state.seq !== lastSeq)) {
-      // 유니티가 다시 켜지면 seq가 처음부터 → 그대로 받음
+    $("live").classList.toggle("on", r.connected);
+    $("conn").textContent = r.connected ? "유니티 연결됨" : r.state ? "연결 끊김" : "유니티 기다리는 중";
+    if (r.connected) startView();
+    if (r.state && r.state.seq !== lastSeq) {
       S = r.state; lastSeq = S.seq;
+      $("sceneInfo").textContent = `${S.scene} · 부위 ${S.parts.length}`;
       if (sel && !S.parts.find(p => p.id === sel)) sel = null;
-      render();
+      drawLooks(); drawParts();
+      if (document.body.classList.contains("bench-open")) drawBench();
+      if (S.msg && S.msg !== lastMsg) { lastMsg = S.msg; toast(S.msg); }
     }
   } catch (e) {
-    $("conn").textContent = "콘솔 서버 꺼짐"; $("conn").className = "pill off";
+    $("live").classList.remove("on"); $("conn").textContent = "콘솔 서버 꺼짐";
   }
   setTimeout(poll, 250);
 }

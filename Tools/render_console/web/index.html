@@ -2,65 +2,96 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>렌더 룩 콘솔</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Render Look Console</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<header class="bar">
-  <div class="brand"><span class="logo"></span><b>렌더 룩 콘솔</b></div>
-  <span id="conn" class="pill off">유니티 기다리는 중</span>
-  <span id="scene" class="muted"></span>
-  <span class="grow"></span>
-  <button id="btnReset" class="ghost" title="조명 분위기와 모든 부위 재질을 처음 상태로">원래대로</button>
-  <button id="btnSaveLook" class="ghost" title="지금 조명 분위기와 세부 수치를 새 룩 프리셋으로">룩 저장</button>
-  <button id="btnSaveMat" class="primary" title="고른 부위의 지금 재질 수치를 새 재질 프리셋으로">재질 저장</button>
-  <button id="btnQuit" class="icon" title="콘솔 종료" aria-label="콘솔 종료">✕</button>
-</header>
+<!-- 렌더 뷰: 유니티 카메라 그림 (UI 없이) -->
+<div class="stage" id="stage">
+  <img id="view" class="hidden" alt="유니티 렌더 뷰">
+  <div class="empty" id="empty"><b>렌더 뷰를 기다리는 중</b>유니티에서 플레이를 누르면 여기에 장면이 보여요.<br>재질 공을 이 화면에 끌어다 놓으면 고른 부위에 입혀져요.</div>
+</div>
+<div class="viewtag" id="viewtag">렌더 뷰 · UI 없이 카메라만</div>
 
-<main>
-  <section class="col look">
-    <h2>조명 분위기</h2>
-    <div id="looks" class="list"></div>
-    <p id="lookNote" class="note"></p>
-    <h3>세부 조절</h3>
-    <div id="lookSliders" class="sliders"></div>
-  </section>
+<div class="toggle">
+  <button class="on" data-t="light">밝은 테마</button>
+  <button data-t="dark">어두운 테마</button>
+</div>
+<div class="toast fade" id="toast"><i></i><span id="toastText"></span></div>
 
-  <section class="col parts">
-    <div class="head">
-      <h2>부위</h2>
-      <button id="btnRescan" class="tiny" title="장면을 다시 훑어 부위 목록 새로 고침">다시 찾기</button>
+<aside class="panel main">
+  <div class="head">
+    <div class="mark"><i></i></div>
+    <div>
+      <div class="title">Render Look Console</div>
+      <div class="sub"><span class="live" id="live"></span><span id="conn">유니티 기다리는 중</span><span class="dot"></span><span id="sceneInfo">—</span></div>
     </div>
-    <div id="labeled" class="list"></div>
-    <details id="autoBox">
-      <summary>장면에서 찾은 재질 <span id="autoCount" class="muted"></span></summary>
-      <input id="search" type="search" placeholder="재질 이름 찾기">
-      <div id="auto" class="list small"></div>
-    </details>
-  </section>
-
-  <section class="col mat">
-    <h2 id="partTitle">부위를 고르세요</h2>
-    <p class="note" id="partHint">왼쪽에서 부위를 누르면 그 부위의 재질을 바꿀 수 있어요. 조명만 바꾸려면 재질은 그대로 두면 돼요.</p>
-    <div id="matPanel" class="hidden">
-      <h3>적용 방식</h3>
-      <div class="seg" id="modes">
-        <button data-mode="original">원래 재질</button>
-        <button data-mode="replace">전부 바꾸기</button>
-        <button data-mode="keep">텍스처 유지 · 수치만</button>
+  </div>
+  <div class="scroll">
+    <div class="sec">
+      <div class="label"><span>룩</span><span id="lookCount"></span></div>
+      <div class="looks" id="looks"></div>
+      <p class="hint" id="lookNote" style="margin-top:10px"></p>
+    </div>
+    <div class="sec" id="lookSec">
+      <div class="label"><span>조명 세부</span><span id="lookHint">룩을 고르면 조절할 수 있어요</span></div>
+      <div id="lookSliders"></div>
+    </div>
+    <div class="sec">
+      <div class="label"><span>부위 재질</span><button class="link" id="openBench">재질 작업대 ›</button></div>
+      <div id="labeled"></div>
+      <div class="label" style="margin-top:14px"><span>장면에서 찾은 재질</span><button class="link" id="toggleAuto"></button></div>
+      <div id="autoWrap" class="hidden">
+        <input class="search" id="search" type="search" placeholder="재질 이름 찾기">
+        <div id="auto"></div>
       </div>
-      <p class="note" id="modeNote"></p>
-      <h3>재질 프리셋</h3>
-      <div id="mats" class="chips"></div>
-      <h3>수치 <span class="muted">움직이면 유니티에 바로 반영</span></h3>
-      <div class="sliders" id="matSliders"></div>
-      <div class="row color"><label>색</label><input id="color" type="color"><span id="colorNote" class="muted"></span></div>
     </div>
-  </section>
-</main>
+  </div>
+  <div class="foot">
+    <button class="ghost" id="resetAll" title="조명과 모든 부위를 처음 상태로">원래대로</button>
+    <button class="go" id="saveLook"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>룩 저장</button>
+  </div>
+</aside>
 
-<footer id="msg" class="foot">원본 재질 파일은 안 바뀌어요 · [원래대로]를 누르면 처음 상태로 돌아와요</footer>
+<aside class="panel bench" id="bench">
+  <div class="head">
+    <div>
+      <div class="title">재질 작업대</div>
+      <div class="sub">끌어서 놓거나 값을 바꿔 보세요</div>
+    </div>
+    <button class="x" id="closeBench" aria-label="작업대 닫기">×</button>
+  </div>
+  <div class="scroll">
+    <div class="sec">
+      <div class="label"><span>선택한 부위</span><span id="selName"></span></div>
+      <div class="hero">
+        <div class="big" id="big"></div>
+        <div>
+          <b id="matName"></b>
+          <p id="matNote"></p>
+          <div class="seg" id="seg">
+            <button data-m="original">원본</button><button data-m="replace">전부 바꾸기</button><button data-m="keep">텍스처 유지</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="sec">
+      <div class="label"><span>값 조절</span><span id="rangeHint"></span></div>
+      <div class="colorrow" id="colorRow"><input type="color" id="c"><span>색</span><code id="cHex"></code></div>
+      <div id="sliders"></div>
+    </div>
+    <div class="sec">
+      <div class="label"><span>기본 재질</span><span>끌어서 부위·렌더 뷰에 놓기</span></div>
+      <div class="lib" id="lib"></div>
+    </div>
+  </div>
+  <div class="foot">
+    <button class="ghost" id="resetPart">원본으로</button>
+    <button class="go" id="saveMat">내 재질로 저장</button>
+  </div>
+</aside>
 <script src="app.js"></script>
 </body>
 </html>
