@@ -30,7 +30,10 @@ public class UnityToFollowerGUI : MonoBehaviour
     public int statusPort = 5062;    // 브리지 상태·응답 보내는 포트
     public float okDiffDeg = 2f;     // 이 안이면 "같은 자세"
     // 쉬는 자세 = 10/23 실측 (so101_config.json rest_pose_deg와 같은 값)
-    public float[] restPoseDeg = { 0f, -107.6f, 87.2f, 71.1f, 0f, -10f };   // 집게 -10° = 닫힘 (흰 팔 쉬는 자세 실측 -10~-11°)
+    public float[] restPoseDeg = { 0f, -107.6f, 87.2f, 71.1f, 0f, -10f };   // [5] 집게 값은 안 씀 → ClosedGripDeg
+    // 자동 자세(ㄱ자·쉬는 자세·처음)에서 집게 = 닫힘. 흰 팔 쉬는 자세 실측 -10~-11° (더 조이면 서보가 계속 누름)
+    // 상수라 씬에 저장되지 않음 (씬에 예전 restPoseDeg 집게 0°가 남아 있어서 덮어쓰던 문제)
+    public const float ClosedGripDeg = -10f;
 
     LeaderArmReceiver receiver;
     RobotJointTester tester;
@@ -83,13 +86,15 @@ public class UnityToFollowerGUI : MonoBehaviour
     public float StartDeg(int i) => startDeg[i];
     public float Target(int i) => tester.anglesDeg[i];
     public void SetTarget(int i, float v) { mover.Cancel(); tester.anglesDeg[i] = Mathf.Clamp(v, JointMin(i), JointMax(i)); }
-    public void ResetAll() => mover.MoveTo(startDeg);          // 6관절 모두 처음 각도로 (안전 순서)
-    // ㄱ자(모두 0°) / 쉬는 자세로 — 집게는 지금 각도 그대로 (자세 이동 때 집게는 안 건드림, 브리지 goto_pose와 같음)
+    public void ResetAll() => GoClosed(startDeg);              // 5관절 처음 각도로 + 집게 닫힘 (안전 순서)
+    // 자동 자세로 — 집게는 닫힘(ClosedGripDeg). 손목 회전까지 5관절은 pose 값 그대로
+    void GoClosed(float[] pose) { var g = (float[])pose.Clone(); g[5] = ClosedGripDeg; mover.MoveTo(g); }
+    // 자세로 — 집게는 지금 각도 그대로 (브리지 goto_pose와 같음)
     public void GoPose(float[] pose) { var g = (float[])pose.Clone(); g[5] = tester.anglesDeg[5]; mover.MoveTo(g); }
     public void MoveToPose(float[] pose) => mover.MoveTo(pose);   // 저장한 자세로 (집게 포함 6관절, 안전 순서)
     public void HoldHere() => mover.HoldHere();                     // 그 자리에서 멈춤 (흰 팔 연동은 그대로)
-    public void GoLPose() => GoPose(new float[6]);
-    public void GoRest() => mover.MoveTo(restPoseDeg);           // 쉬는 자세는 집게도 닫음
+    public void GoLPose() => GoClosed(new float[6]);
+    public void GoRest() => GoClosed(restPoseDeg);
     public bool MovingPose => mover && mover.Moving;
     public string MoveStatus => mover ? mover.Status : "";
     public float SliderMin(int i) => Mathf.Max(JointMin(i), startDeg[i] - SliderSpan);
