@@ -48,7 +48,7 @@ public partial class TwinSidePanel : MonoBehaviour   // 로봇 [자세] 탭은 T
     Text previewLabel, detailTitle, detailState, detailCaption;
     Text totalText, goodText, badText, yieldText, robotCardState, visionCardState, robotCardMeta, visionCardMeta;
     Text currentRule, sceneState, lastReceiveText, visionTotal, visionYield, visionBad, jointValueText;
-    Text primaryText, secondaryText, stopText;
+    Text primaryText, secondaryText, stopText, modeHint;
     Image robotCard, robotEdge, visionCard, visionEdge, robotDot, visionDot, primaryFill, tabOverview, tabDetail;
     readonly Text[] colorCount = new Text[3], digitCount = new Text[3];
     readonly Text[] jointUnity = new Text[6], jointFollower = new Text[6], jointDifference = new Text[6];
@@ -261,6 +261,29 @@ public partial class TwinSidePanel : MonoBehaviour   // 로봇 [자세] 탭은 T
             ? Hex(0x23528C, .95f) : ActiveFill;
         stop.interactable = robot && !halted;
         stopText.text = halted ? "비상 정지 중" : "■  비상 정지";
+        modeHint.text = ModeHint(ready, live, halted, mode, offline);
+        modeHint.color = ready && (halted || mode == UnityToFollowerGUI.Mode.UnityReal) ? Alert : Muted;
+    }
+
+    // 모드별 안내: 첫 줄 = 지금 상태, 둘째 줄 = 다음에 누를 것
+    static string Two(string now, string next) => now + "\n" + next;
+
+    string ModeHint(bool ready, bool live, bool halted, UnityToFollowerGUI.Mode mode, bool offline)
+    {
+        if (!ready) return "로봇 신호 없음";
+        if (halted) return Two("비상 정지 중 — 흰 팔이 멈춰 있어요", "패널에서 해제해야 다시 움직일 수 있어요");
+        switch (mode)
+        {
+            case UnityToFollowerGUI.Mode.Leader:
+                return live ? Two("리더 팔을 따라 움직이는 중", "[유니티로 조종] → 연습 모드 (흰 팔은 아직 안 움직임)")
+                            : Two("로봇 연결 없음 — 유니티 팔만 쓸 수 있어요", "[로봇 없이 연습] → 슬라이더·[자세]로 움직이기");
+            case UnityToFollowerGUI.Mode.UnityPractice:
+                if (offline) return Two("로봇 없이 연습 중 — 흰 팔은 안 움직여요", "흰 팔을 쓰려면 [리더로 돌아가기] → 패널 연결");
+                return robot.AllOk ? Two("연습 모드 — 흰 팔과 자세가 같아요", "[흰 팔 움직이기]를 두 번 누르면 실물이 움직여요")
+                                   : Two("연습 모드 — 흰 팔은 가만히 있어요", "[흰 팔에 맞추기] → 차이 2° 안이면 실물로 갈 수 있어요");
+            default:
+                return Two("⚠ 실물 모드 — 흰 팔이 유니티대로 움직여요", "멈추려면 [동작 정지] 또는 [비상 정지]");
+        }
     }
 
     void LateUpdate()
@@ -550,6 +573,8 @@ public partial class TwinSidePanel : MonoBehaviour   // 로봇 [자세] 탭은 T
         Place(primary.GetComponent<RectTransform>(), Inset, 780 + RobotTabH, half, 46);
         secondary = MakeButton(robotPage, "StopOrFollow", "리더로 돌아가기", CardFill, Border, OnSecondary, out secondaryText, out _);
         Place(secondary.GetComponent<RectTransform>(), Inset + half + 8, 780 + RobotTabH, half, 46);
+        // 조종 버튼 아래 안내 두 줄: 지금 어떤 모드인지 + 다음에 무엇을 누르면 되는지 (배우는 사람용)
+        modeHint = Label(robotPage, "", Inset, 780 + RobotTabH + 52, detailContent, 36, 13, medium, Muted, TextAnchor.UpperLeft);
         BuildPosePage(posePage);
     }
 
