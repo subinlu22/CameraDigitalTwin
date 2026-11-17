@@ -74,6 +74,7 @@ public class GripperGrab : MonoBehaviour
     {
         float target = jaw.xDrive.target;                       // 리더(또는 슬라이더)가 넣은 집게 목표 각도
         float angle = jaw.jointPosition[0] * Mathf.Rad2Deg;     // 실제 집게 각도 (뚜껑에 막히면 목표보다 큼)
+        float prevTarget = lastTarget; lastTarget = target;     // 지난 물리 프레임의 목표 (닫히는 중인지 보려고)
         CheckFallGuard();
         CheckFingersClear();
 
@@ -96,7 +97,9 @@ public class GripperGrab : MonoBehaviour
         touching = both ? both.name : "";
         // ② 쥐는 중 + 뚜껑이 두 손가락 사이에 있음 → 잡기 (닿자마자 잡아서 뚜껑이 끼어 튀어 나가기 전에)
         if (both == null) return;
-        bool squeezing = target < angle - squeezeDeg, between = Between(both);
+        // 쥐는 중 = 목표가 지금보다 더 닫혀 있음(막힘) 또는 목표가 닫히는 쪽으로 줄어드는 중
+        // (유니티 조종은 초당 10°로 천천히 닫아서 목표가 지금 각도와 거의 같음 → 막힘만 보면 못 잡고 뚜껑을 밀기만 함)
+        bool squeezing = target < angle - squeezeDeg || target < prevTarget - 0.01f, between = Between(both);
         if (squeezing && between) { Grab(both, angle); return; }
         // 두 손가락이 닿았는데 못 잡을 때 이유 남기기 (0.5초에 한 번)
         if (Time.time - lastWhyLog > 0.5f)
@@ -106,6 +109,7 @@ public class GripperGrab : MonoBehaviour
         }
     }
     float lastWhyLog = -1f;
+    float lastTarget = float.MaxValue;
 
     // [진단] 집게가 목표 각도를 0.3초 넘게 못 따라가면(= 뭔가에 막힘) 움직이는 집게 상자에 닿은 것들을 로그로 남김
     float stuckSince = -1f, lastStuckLog = -1f;
