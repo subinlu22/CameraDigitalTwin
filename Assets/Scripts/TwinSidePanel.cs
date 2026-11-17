@@ -22,14 +22,14 @@ public partial class TwinSidePanel : MonoBehaviour   // 로봇 [자세] 탭은 T
     }
 
     // 디지털 트윈 관제 화면 스타일 (11/17): 어두운 반투명 유리 + 청록 포인트 하나. 색은 이상 상태(미연결·불량·경고)에만
-    static readonly Color Ink = Hex(0xE9EEF3), Secondary = Hex(0xC4CDD6), Muted = Hex(0x8C98A5);
+    static readonly Color Ink = Hex(0xF2F5F8), Secondary = Hex(0xD3DAE1), Muted = Hex(0xAAB5C1);
     static readonly Color Blue = Hex(0x5FD4E8), BlueInk = Hex(0xA8ECF6), Alert = Hex(0xFF6A6E), Warn = Hex(0xF2B441);
     static readonly Color Border = new Color(1, 1, 1, .13f), LineColor = new Color(1, 1, 1, .08f);
     static readonly Color CardFill = new Color(1, 1, 1, .035f);
     static readonly Color ActiveFill = new Color(.37f, .83f, .91f, .12f);
     static readonly Color AccentEdge = new Color(.37f, .83f, .91f, .55f);
     static readonly Color AccentInk = Hex(0x04161B);                    // 청록 버튼 위 글자
-    static readonly Color Tint = new Color(.04f, .055f, .075f, .56f);   // 유리: 뒤가 은은하게 비침
+    static readonly Color Tint = new Color(.04f, .055f, .075f, .62f);   // 유리: 뒤가 은은하게 비침
     static readonly Color TintNoBlur = new Color(.04f, .055f, .075f, .9f);
     static readonly string[] Colors = { "white", "blue", "red" };
     static readonly string[] Digits = { "1", "2", "3" };
@@ -49,6 +49,7 @@ public partial class TwinSidePanel : MonoBehaviour   // 로봇 [자세] 탭은 T
     Glass detail, overview, statusBar;
     Text overviewTabText;
     RectTransform overviewTab;
+    readonly List<GameObject> detailTicksTL = new List<GameObject>(), overviewTicksBR = new List<GameObject>();
     CanvasGroup overviewFade;
     Text linkUnity, linkFollower, linkLeader, clockText;
     Image linkUnityDot, linkFollowerDot, linkLeaderDot;
@@ -154,10 +155,13 @@ public partial class TwinSidePanel : MonoBehaviour   // 로봇 [자세] 탭은 T
     // 슬라이드 위치: 숨었을 땐 왼쪽 끝을 장비 정보 왼쪽 끝에 맞춤 (탭만 밖으로), 다 나오면 옆 칸
     void PlaceOverview(float top)
     {
-        float hidden = Gutter + detailWidth - overviewWidth, shown = Gutter + detailWidth + Gap + TabW;
+        float hidden = Gutter + detailWidth - overviewWidth, shown = Gutter + detailWidth - 1;   // -1 = 테두리 한 줄로 겹침
         float e = slide * slide * (3f - 2f * slide);   // 부드럽게 (smoothstep)
         float right = Mathf.Lerp(hidden, shown, e);
-        DockRight(overview.Root, right, overviewWidth, top + 6, Gutter + 6);
+        DockRight(overview.Root, right, overviewWidth, top, Gutter);
+        // 펼치면 두 패널이 큰 네모 하나: 장비 정보 왼쪽 위 눈금은 가운데가 되니 숨기고, 장비 현황 오른쪽 아래 눈금도 숨김
+        foreach (var t in detailTicksTL) t.SetActive(e < .5f);
+        foreach (var t in overviewTicksBR) t.SetActive(false);
         // 반투명한 장비 정보 뒤로 들어가며 글자가 비쳐 보이지 않게 → 들어갈수록 흐려지고 다 들어가면 끔
         overviewFade.alpha = e;
         overviewFade.blocksRaycasts = e > .5f;
@@ -261,6 +265,7 @@ public partial class TwinSidePanel : MonoBehaviour   // 로봇 [자세] 탭은 T
         SetLink(linkFollower, linkFollowerDot, "FOLLOWER " + (live ? "연결" : "미연결"), live ? Blue : Warn);
         bool leading = ready && mode == UnityToFollowerGUI.Mode.Leader;
         SetLink(linkLeader, linkLeaderDot, "LEADER " + (leading ? "따라가는 중" : "대기"), leading && live ? Blue : Muted);
+        LayoutLinks();
         robotCardMeta.text = modeLabel;
         if (selected == Device.Robot)
         {
@@ -320,10 +325,23 @@ public partial class TwinSidePanel : MonoBehaviour   // 로봇 [자세] 탭은 T
         stop.interactable = robot && !halted;
         stopText.text = halted ? "비상 정지 중" : "■  비상 정지";
         modeHint.text = ModeHint(ready, live, halted, mode, offline);
-        modeHint.color = ready && (halted || mode == UnityToFollowerGUI.Mode.UnityReal) ? Alert : Muted;
+        modeHint.color = ready && (halted || mode == UnityToFollowerGUI.Mode.UnityReal) ? Alert : Secondary;
     }
 
     static void SetLink(Text t, Image dot, string value, Color c) { t.text = value; dot.color = c; }
+
+    // 연결 상태 3개를 오른쪽(시각 왼쪽)부터 글자 폭대로 나란히 놓음
+    void LayoutLinks()
+    {
+        float right = 14 + 76 + 22;
+        foreach (var (t, dot) in new[] { (linkLeader, linkLeaderDot), (linkFollower, linkFollowerDot), (linkUnity, linkUnityDot) })
+        {
+            float w = Mathf.Ceil(t.preferredWidth) + 2;
+            PlaceRight(t.rectTransform, right, 0, w, StatusH);
+            PlaceRight(dot.rectTransform, right + w + 7, 13, 8, 8);
+            right += w + 7 + 8 + 24;
+        }
+    }
 
     // 모드별 안내: 첫 줄 = 지금 상태, 둘째 줄 = 다음에 누를 것
     static string Two(string now, string next) => now + "\n" + next;
@@ -483,30 +501,32 @@ public partial class TwinSidePanel : MonoBehaviour   // 로봇 [자세] 탭은 T
         tint.raycastTarget = true;
         Stretch(tint.rectTransform, 0);
         Stretch(Img("Outline", root, panelEdge, Border).rectTransform, 0);
-        if (ticks) CornerTicks(root);
+        if (ticks) CornerTicks(root, name == "EquipmentDetail" ? detailTicksTL : null, name == "EquipmentOverview" ? overviewTicksBR : null);
         return new Glass { Root = root, Mask = window.rectTransform, Backdrop = bg, Tint = tint };
     }
 
     // 왼쪽 위·오른쪽 아래 L자 눈금 (청록) — 계측기 느낌
-    void CornerTicks(RectTransform root)
+    void CornerTicks(RectTransform root, List<GameObject> tl = null, List<GameObject> br = null)
     {
         const float len = 11f, th = 2f;
-        Place(Img("TickTL_H", root, null, Blue).rectTransform, -1, -1, len, th);
-        Place(Img("TickTL_V", root, null, Blue).rectTransform, -1, -1, th, len);
+        var h1 = Img("TickTL_H", root, null, Blue).rectTransform; Place(h1, -1, -1, len, th);
+        var v1 = Img("TickTL_V", root, null, Blue).rectTransform; Place(v1, -1, -1, th, len);
+        tl?.Add(h1.gameObject); tl?.Add(v1.gameObject);
         var a = Img("TickBR_H", root, null, Blue).rectTransform;
         a.anchorMin = a.anchorMax = a.pivot = Vector2.right; a.sizeDelta = new Vector2(len, th); a.anchoredPosition = new Vector2(1, -1);
         var b = Img("TickBR_V", root, null, Blue).rectTransform;
         b.anchorMin = b.anchorMax = b.pivot = Vector2.right; b.sizeDelta = new Vector2(th, len); b.anchoredPosition = new Vector2(1, -1);
+        br?.Add(a.gameObject); br?.Add(b.gameObject);
     }
 
     // 구획 제목: "01  JOINT STATUS · 관절 상태" (번호는 청록, 제목은 흐리게, 오른쪽에 단위)
     Text Section(RectTransform root, string no, string title, float x, float y, float w, string right = null)
     {
-        Label(root, no, x, y, 22, 22, 12, numBold, Blue);
+        Label(root, no, x, y, 22, 22, 14, numBold, Blue);
         int cut = title.IndexOf(" · ");
         string en = cut < 0 ? title : title.Substring(0, cut), ko = cut < 0 ? null : title.Substring(cut + 3);
-        var t = Label(root, en, x + 24, y, w - 24, 22, 12, display, Muted);
-        if (ko != null) Label(root, ko, x + 24 + t.preferredWidth + 8, y, w, 22, 12, semi, Muted);
+        var t = Label(root, en, x + 24, y, w - 24, 22, 13, displayBold, Secondary);
+        if (ko != null) Label(root, ko, x + 24 + t.preferredWidth + 8, y, w, 22, 13, semi, Secondary);
         if (right != null) Label(root, right, x, y, w, 22, 12, num, Muted, TextAnchor.MiddleRight);
         return t;
     }
@@ -515,10 +535,10 @@ public partial class TwinSidePanel : MonoBehaviour   // 로봇 [자세] 탭은 T
     void BuildStatusBar()
     {
         var bar = statusBar.Root;
-        Label(bar, "SO-101 DIGITAL TWIN", 14, 0, 220, StatusH, 13, displayBold, Ink);
-        Label(bar, "/   LINE 09   /   CELL 01 · 컨베이어 집기", 178, 0, 320, StatusH, 13, medium, Muted);
-        clockText = Label(bar, "", 0, 0, 1, StatusH, 14, num, Muted, TextAnchor.MiddleRight);
-        PlaceRight(clockText.rectTransform, 14, 0, 70, StatusH);
+        var brand = Label(bar, "SO-101 DIGITAL TWIN", 14, 0, 260, StatusH, 13, displayBold, Ink);
+        Label(bar, "/   LINE 09   /   CELL 01 · 컨베이어 집기", 14 + brand.preferredWidth + 14, 0, 360, StatusH, 13, semi, Secondary);
+        clockText = Label(bar, "", 0, 0, 1, StatusH, 14, num, Secondary, TextAnchor.MiddleRight);
+        PlaceRight(clockText.rectTransform, 14, 0, 76, StatusH);
         linkLeader = LinkItem(bar, 100, "LEADER", out linkLeaderDot);
         linkFollower = LinkItem(bar, 260, "FOLLOWER", out linkFollowerDot);
         linkUnity = LinkItem(bar, 440, "UNITY", out linkUnityDot);
@@ -567,7 +587,7 @@ public partial class TwinSidePanel : MonoBehaviour   // 로봇 [자세] 탭은 T
     {
         var pane = overview.Root;
         Label(pane, "장비 현황", Inset, 12, overviewContent, 30, 18, bold, Ink);
-        Label(pane, "OVERVIEW", Inset, 12, overviewContent, 30, 11, semi, Muted, TextAnchor.MiddleRight).font = display;
+        Label(pane, "OVERVIEW", Inset, 12, overviewContent, 30, 12, displayBold, Secondary, TextAnchor.MiddleRight);
         Rule(pane, 0, 50, overviewWidth);
 
         // 01 검사: 숫자 3칸 (불량만 빨강), 오른쪽 위 합격률
@@ -581,7 +601,7 @@ public partial class TwinSidePanel : MonoBehaviour   // 로봇 [자세] 탭은 T
             float x = Inset + i * third;
             if (i > 0) Place(Img("KpiDivider", pane, null, LineColor).rectTransform, x - 1, 92, 1, 54);
             float pad = i > 0 ? 10 : 0;
-            Label(pane, kpi[i], x + pad, 90, third - pad, 18, 12, semi, Muted);
+            Label(pane, kpi[i], x + pad, 90, third - pad, 18, 13, semi, Secondary);
             kpiValue[i] = Label(pane, "0", x + pad, 106, third - pad, 42, 34, numBold, i == 2 ? Alert : Ink);
         }
         totalText = kpiValue[0]; goodText = kpiValue[1]; badText = kpiValue[2];
@@ -622,12 +642,12 @@ public partial class TwinSidePanel : MonoBehaviour   // 로봇 [자세] 탭은 T
         var rect = fill.rectTransform;
         edge = Img("Selection", rect, null, Blue);
         Place(edge.rectTransform, 0, 0, 2, 56);
-        Label(rect, device == Device.Robot ? "ARM" : "CAM", 12, 0, 40, 56, 11, display, Muted);
-        Label(rect, title, 52, 7, overviewContent - 140, 24, 16, semi, Ink);
-        meta = Label(rect, kind, 52, 30, overviewContent - 64, 20, 13, medium, Muted);
+        Label(rect, device == Device.Robot ? "ARM" : "CAM", 12, 0, 44, 56, 11, displayBold, Secondary);
+        Label(rect, title, 62, 7, overviewContent - 150, 24, 16, semi, Ink);
+        meta = Label(rect, kind, 62, 30, overviewContent - 64, 20, 13, semi, Secondary);
         stateDot = Img("StatusDot", rect, null, Blue);
         PlaceRight(stateDot.rectTransform, 74, 15, 7, 7);
-        state = Label(rect, "", 0, 0, 1, 1, 12, bold, Secondary, TextAnchor.MiddleRight);
+        state = Label(rect, "", 0, 0, 1, 1, 13, bold, Ink, TextAnchor.MiddleRight);
         PlaceRight(state.rectTransform, 10, 7, 60, 24);
     }
 
@@ -662,7 +682,7 @@ public partial class TwinSidePanel : MonoBehaviour   // 로봇 [자세] 탭은 T
     {
         var pane = detail.Root;
         Label(pane, "장비 정보", Inset, 12, detailContent - 90, 30, 18, bold, Ink);
-        Label(pane, "EQUIPMENT", Inset, 12, detailContent, 30, 11, semi, Muted, TextAnchor.MiddleRight).font = display;
+        Label(pane, "EQUIPMENT", Inset, 12, detailContent, 30, 12, displayBold, Secondary, TextAnchor.MiddleRight);
         Rule(pane, 0, 50, detailWidth);
         var previewRect = Img("ScenePreview", pane, cardSprite, Color.white);
         Place(previewRect.rectTransform, Inset, 57, detailContent, 161);
@@ -676,7 +696,7 @@ public partial class TwinSidePanel : MonoBehaviour   // 로봇 [자세] 탭은 T
         previewLabel = Label(previewTag.rectTransform, "씬 미리보기", 0, 0, 130, 24, 13, semi, Ink, TextAnchor.MiddleCenter);
 
         detailTitle = Label(pane, "", Inset, 226, detailContent, 38, 25, bold, Ink);
-        detailCaption = Label(pane, "", Inset, 266, detailContent - 112, 24, 14, medium, Muted);
+        detailCaption = Label(pane, "", Inset, 266, detailContent - 112, 24, 14, semi, Secondary);
         var tag = Img("Mode", pane, null, Color.clear);   // 모드 = 청록 테두리 글자 (상자 대신)
         PlaceRight(tag.rectTransform, Inset, 266, 112, 24);
         Stretch(Img("ModeEdge", tag.transform, cardEdge, AccentEdge).rectTransform, 0);
@@ -700,19 +720,19 @@ public partial class TwinSidePanel : MonoBehaviour   // 로봇 [자세] 탭은 T
         const float codeW = 24f, nameW = 64f, barW = 60f;
         float col = (detailContent - codeW - nameW - barW - 8) / 3f;
         float xName = Inset + codeW, xBar = xName + nameW, xVal = xBar + barW + 8;
-        Label(pane, "관절", xName, 358, nameW, 22, 11, semi, Muted);
-        Label(pane, "범위 안 위치", xBar, 358, barW + 8, 22, 11, semi, Muted);
-        Label(pane, "UNITY", xVal, 358, col, 22, 11, semi, Muted, TextAnchor.MiddleRight);
-        Label(pane, "실물", xVal + col, 358, col, 22, 11, semi, Muted, TextAnchor.MiddleRight);
-        Label(pane, "차이", xVal + 2 * col, 358, col, 22, 11, semi, Muted, TextAnchor.MiddleRight);
+        Label(pane, "관절", xName, 358, nameW, 22, 12, semi, Secondary);
+        Label(pane, "위치", xBar, 358, barW, 22, 12, semi, Secondary);
+        Label(pane, "UNITY", xVal, 358, col, 22, 12, displayBold, Secondary, TextAnchor.MiddleRight);
+        Label(pane, "실물", xVal + col, 358, col, 22, 12, semi, Secondary, TextAnchor.MiddleRight);
+        Label(pane, "차이", xVal + 2 * col, 358, col, 22, 12, semi, Secondary, TextAnchor.MiddleRight);
         for (int i = 0; i < 6; i++)
         {
             float y = rowY + i * rowHeight;
             jointRowFill[i] = Img("RowFill", pane, null, Color.clear);   // 고른 관절 줄 = 옅은 청록
             Place(jointRowFill[i].rectTransform, Inset - 6, y - 1, detailContent + 12, rowHeight - 1);
             Rule(pane, Inset, y - 2, detailContent);
-            Label(pane, "J" + (i + 1), Inset, y, codeW, 29, 13, numBold, Muted);
-            jointName[i] = Label(pane, UnityToFollowerGUI.JointName(i), xName, y, nameW, 29, 14, medium, Ink);
+            Label(pane, "J" + (i + 1), Inset, y, codeW, 29, 14, numBold, Secondary);
+            jointName[i] = Label(pane, UnityToFollowerGUI.JointName(i), xName, y, nameW, 29, 14, semi, Ink);
             // 위치 막대: 가는 선 위에 지금 각도 표시 (세로 흰 줄), 0°에 옅은 눈금
             var track = Img("PosTrack", pane, null, new Color(1, 1, 1, .12f));
             Place(track.rectTransform, xBar, y + 14, barW, 2);
@@ -733,7 +753,7 @@ public partial class TwinSidePanel : MonoBehaviour   // 로봇 [자세] 탭은 T
         Place(prevJoint.GetComponent<RectTransform>(), Inset + detailContent - 86, 614, 40, 30);
         nextJoint = MakeButton(pane, "NextJoint", "▶", CardFill, Border, () => { if (robot) robot.SelectNext(1); }, out _, out _);
         Place(nextJoint.GetComponent<RectTransform>(), Inset + detailContent - 40, 614, 40, 30);
-        jointValueText = Label(pane, "—", Inset + detailContent - 110, 638, 110, 34, 30, numBold, Ink, TextAnchor.MiddleRight);
+        jointValueText = Label(pane, "—", Inset + detailContent - 110, 644, 110, 25, 22, numBold, Ink, TextAnchor.MiddleRight);
         jointSlider = MakeSlider(pane, Inset, 672, detailContent);
         float stepWidth = (detailContent - 14) / 3f;
         float[] delta = { -15f, 0, 15f };
@@ -752,7 +772,7 @@ public partial class TwinSidePanel : MonoBehaviour   // 로봇 [자세] 탭은 T
         secondary = MakeButton(robotPage, "StopOrFollow", "리더로 돌아가기", CardFill, Border, OnSecondary, out secondaryText, out _);
         Place(secondary.GetComponent<RectTransform>(), Inset + half + 8, 780 + RobotTabH, half, 46);
         // 조종 버튼 아래 안내 두 줄: 지금 어떤 모드인지 + 다음에 무엇을 누르면 되는지 (배우는 사람용)
-        modeHint = Label(robotPage, "", Inset, 780 + RobotTabH + 52, detailContent, 36, 13, medium, Muted, TextAnchor.UpperLeft);
+        modeHint = Label(robotPage, "", Inset, 780 + RobotTabH + 52, detailContent, 36, 13, semi, Secondary, TextAnchor.UpperLeft);
         BuildPosePage(posePage);
     }
 
@@ -784,7 +804,7 @@ public partial class TwinSidePanel : MonoBehaviour   // 로봇 [자세] 탭은 T
 
     Text Row(RectTransform root, string key, float x, float y, float w, float h)
     {
-        Label(root, key, x, y, w * .51f, h, 16, medium, Muted);
+        Label(root, key, x, y, w * .51f, h, 15, semi, Secondary);
         return Label(root, "", x + w * .46f, y, w * .54f, h, 18, numBold, Ink, TextAnchor.MiddleRight);
     }
 
