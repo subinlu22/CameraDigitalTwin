@@ -60,11 +60,12 @@ public class ArmPoseMover : MonoBehaviour
     public static List<float[]> SafePath(float[] now, float[] goal, float clearPan = 45f, float threshold = 10f)
     {
         var path = new List<float[]>();
-        bool big = false;
-        for (int i = 0; i <= 4; i++) if (Mathf.Abs(goal[i] - now[i]) > threshold) big = true;
+        // 위로 들고 가는 건 어깨 회전이 크게 바뀔 때(벨트를 넘어감)와 쉬는 자세를 드나들 때만
+        // (어깨 회전이 거의 같으면 그 자리에서 바로 감 — 예: 집기 → 들어올림을 높이 들었다 다시 내려오지 않게)
+        bool fromFolded = now[1] < FoldedLiftDeg, toFolded = goal[1] < FoldedLiftDeg;
+        bool big = Mathf.Abs(goal[0] - now[0]) > threshold || fromFolded != toFolded;
         if (big)
         {
-            bool fromFolded = now[1] < FoldedLiftDeg, toFolded = goal[1] < FoldedLiftDeg;
             float grip = now[5], roll = now[4];                          // 옮기는 동안 집게·손목 회전은 그대로
             var up = Up(now, grip, roll);
             if (fromFolded)

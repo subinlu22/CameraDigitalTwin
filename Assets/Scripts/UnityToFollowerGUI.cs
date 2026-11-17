@@ -34,6 +34,8 @@ public class UnityToFollowerGUI : MonoBehaviour
     // 자동 자세(ㄱ자·쉬는 자세·처음)에서 집게 = 닫힘. 흰 팔 쉬는 자세 실측 -10~-11° (더 조이면 서보가 계속 누름)
     // 상수라 씬에 저장되지 않음 (씬에 예전 restPoseDeg 집게 0°가 남아 있어서 덮어쓰던 문제)
     public const float ClosedGripDeg = -10f;
+    // 유니티로 조종할 때 관절 최대 속도 (도/초). 상수라 씬 값(예전 10°)에 안 덮임. 브리지 상한 90°/초 안쪽
+    public const float ControlSpeedDps = 15f;
 
     LeaderArmReceiver receiver;
     RobotJointTester tester;
@@ -216,6 +218,7 @@ public class UnityToFollowerGUI : MonoBehaviour
         if (mode != Mode.Leader || EStopped) return;
         Offline = !Live;                       // 패널·흰 팔 연결이 없으면 "로봇 없이 연습"
         receiver.enabled = false;              // 리더가 유니티 팔을 덮어쓰지 않게
+        tester.maxSpeedDps = ControlSpeedDps;
         tester.StartFromCurrentPose();         // 슬라이더 = 지금 자세 (안 튐)
         tester.control = true;
         tester.enabled = true;
