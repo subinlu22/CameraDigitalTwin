@@ -12,6 +12,8 @@ using RenderPresets;
 // 흐름: StreamingAssets/RenderTool의 JSON을 읽음 → 창에서 ◀ ▶로 고름 → 바로 적용
 //   ① 조명 분위기(룩): HDRI 환경광·반사 + 추가 조명 + 반사에만 보이는 소프트박스 + 후처리. 공장 룸·카메라는 그대로
 //   ② 재질: 부위(로봇 몸체·서보·벨트 프레임·벨트 천·작업대)마다 재질 프리셋을 복제본으로 입힘 (원본 재질 파일은 안 바꿈)
+//      방식 두 가지: 전부 바꾸기(프리셋 색·질감) / 텍스처 유지·수치만(원래 색·텍스처에 금속·매끈함·결만)
+//      조명만 바꾸고 싶으면 재질은 '원래 재질'로 두면 됨
 //   ③ [모두 원래대로] = 바꾸기 전 상태로
 // L 키로 기존 룩(공장/스튜디오)을 바꿔도 고른 프리셋은 그 위에 다시 입힘
 // 씬에 안 넣어도 됨: 플레이를 시작하면 자동으로 하나 만들어짐 (빌드 exe도 같음)
@@ -39,6 +41,9 @@ public class RenderPresetPanel : MonoBehaviour
     List<MaterialPresetData> mats = new List<MaterialPresetData>();
     int lookIndex = -1;                              // -1 = 끔
     readonly int[] partChoice = { -1, -1, -1, -1, -1 };   // 부위별 재질 번호 (-1 = 원래 재질)
+    // 재질 적용 방식: false = 전부 바꾸기 (프리셋 색·질감으로 교체, 사진 텍스처 뺌)
+    //                true  = 텍스처 유지 · 수치만 (원래 색·텍스처 맵은 그대로, 금속·매끈함·결만 프리셋 값으로)
+    bool keepTextures;
     readonly bool[] partFound = new bool[5];
     string status = "";
     float statusUntil;
@@ -132,7 +137,8 @@ public class RenderPresetPanel : MonoBehaviour
 
     Material CloneFor(Material src, MaterialPresetData p)
     {
-        if (clones.TryGetValue((src, p.id), out var m) && m) return m;
+        string key = p.id + (keepTextures ? "|keep" : "");
+        if (clones.TryGetValue((src, key), out var m) && m) return m;
         var standard = Shader.Find("Standard");
         m = src.shader == standard ? new Material(src) : new Material(standard);
         m.name = src.name + " → " + p.id;
@@ -141,15 +147,24 @@ public class RenderPresetPanel : MonoBehaviour
         float rough = RenderPresetFiles.Clamp(b.roughness, p.ranges?.roughness);
         float normal = RenderPresetFiles.Clamp(b.normalStrength, p.ranges?.normalStrength);
 
-        // 색·금속·매끈함 (Standard 매끈함 = 1 - 거칠기). 사진 텍스처는 빼서 프리셋 색이 그대로 보이게
-        m.SetColor("_Color", RenderPresetFiles.ToColor(b.color));
-        m.SetTexture("_MainTex", null);
+        // 금속·매끈함 (Standard 매끈함 = 1 - 거칠기)
         m.SetFloat("_Metallic", metal);
         m.SetFloat("_Glossiness", 1f - rough);
-        m.SetTexture("_MetallicGlossMap", null);
-        m.DisableKeyword("_METALLICGLOSSMAP");
-        m.SetFloat("_SmoothnessTextureChannel", 0);
-        m.DisableKeyword("_SMOOTHNESS_TEXTURE_ALBEDO_CHANNEL_A");
+        if (keepTextures)
+        {
+            // 텍스처 유지: 색·사진·금속 맵은 그대로. 금속 맵이 있으면 Standard는 _Metallic 대신 맵을 읽음 → 매끈함 배율만 맞춤
+            m.SetFloat("_GlossMapScale", 1f - rough);
+        }
+        else
+        {
+            // 전부 바꾸기: 사진 텍스처·금속 맵을 빼서 프리셋 색이 그대로 보이게
+            m.SetColor("_Color", RenderPresetFiles.ToColor(b.color));
+            m.SetTexture("_MainTex", null);
+            m.SetTexture("_MetallicGlossMap", null);
+            m.DisableKeyword("_METALLICGLOSSMAP");
+            m.SetFloat("_SmoothnessTextureChannel", 0);
+            m.DisableKeyword("_SMOOTHNESS_TEXTURE_ALBEDO_CHANNEL_A");
+        }
 
         // 디테일 노멀 (원래 노멀맵은 그대로 두고 그 위에 결만 더함). 반복 4×4 (렌더툴과 같음)
         var n = RenderPresetFiles.LoadNormal(b.normalMap);
@@ -162,7 +177,7 @@ public class RenderPresetPanel : MonoBehaviour
             m.SetFloat("_UVSec", 0);
             m.EnableKeyword("_NORMALMAP"); m.EnableKeyword("_DETAIL_MULX2");
         }
-        clones[(src, p.id)] = m; sourceOf[m] = src;
+        clones[(src, key)] = m; sourceOf[m] = src;
         return m;
     }
 
@@ -415,6 +430,7 @@ public class RenderPresetPanel : MonoBehaviour
         small = new GUIStyle(GUI.skin.label) { fontSize = 11, normal = { textColor = Muted }, wordWrap = true };
         button = new GUIStyle(GUI.skin.button) { fontSize = 13 };
         nameBox = new GUIStyle(GUI.skin.label) { fontSize = 13, alignment = TextAnchor.MiddleCenter, normal = { textColor = Ink }, clipping = TextClipping.Clip };
+        small2 = new GUIStyle(nameBox) { normal = { textColor = Muted } };
     }
 
     void Rect(Rect r, Color c) { var old = GUI.color; GUI.color = c; GUI.DrawTexture(r, white); GUI.color = old; }
@@ -437,7 +453,7 @@ public class RenderPresetPanel : MonoBehaviour
         float inner = W - 28;
         string note = lookIndex < 0 ? (looks.Count == 0 ? "looks 폴더에 프리셋이 없어요" : $"프리셋 {looks.Count}개 · ◀ ▶ 로 넘기기") : looks[lookIndex].note;
         float noteH = Mathf.Max(16, small.CalcHeight(new GUIContent(note), inner));
-        float H = 12 + 30 + 20 + Row + 4 + noteH + 10 + 22 + Parts.Length * (Row + 6) + 4 + 34 + 22;
+        float H = 12 + 30 + 20 + Row + 4 + noteH + 10 + 22 + 34 + Parts.Length * (Row + 6) + 4 + 34 + 22;
         var box = new Rect(12, h - H - 12, W, H);
         Rect(box, Fill);
         float x = box.x + 14, y = box.y + 12;
@@ -454,7 +470,12 @@ public class RenderPresetPanel : MonoBehaviour
         GUI.Label(new Rect(x, y, inner, noteH), note, small); y += noteH + 10;
 
         // 재질
-        GUI.Label(new Rect(x, y, inner, 18), "재질 (부위별)", small); y += 22;
+        GUI.Label(new Rect(x, y, inner, 18), "재질 (부위별) · 조명만 바꾸려면 '원래 재질'로 두기", small); y += 22;
+        // 적용 방식 두 칸: 전부 바꾸기 / 텍스처 유지·수치만
+        float half = (inner - 6) / 2;
+        if (Segment(new Rect(x, y, half, 26), "전부 바꾸기", !keepTextures)) SetKeepTextures(false);
+        if (Segment(new Rect(x + half + 6, y, half, 26), "텍스처 유지 · 수치만", keepTextures)) SetKeepTextures(true);
+        y += 34;
         for (int p = 0; p < Parts.Length; p++)
         {
             GUI.Label(new Rect(x, y, 84, Row), Parts[p].label, label);
@@ -468,6 +489,22 @@ public class RenderPresetPanel : MonoBehaviour
         if (GUI.Button(new Rect(x + inner * 0.62f + 8, y, inner * 0.38f - 8, 30), "닫기 (F6)", button)) open = false;
         y += 34;
         GUI.Label(new Rect(x, y, inner, 18), Time.unscaledTime < statusUntil ? status : "원본 재질 파일은 안 바뀌어요 · 끄면 그대로 돌아와요", small);
+    }
+
+    // 고르는 칸 하나 (켜진 쪽은 파란 바탕). 눌렀으면 true
+    bool Segment(Rect r, string text, bool on)
+    {
+        Rect(r, on ? new Color(Blue.r, Blue.g, Blue.b, .35f) : Card);
+        return GUI.Button(r, text, on ? nameBox : small2);
+    }
+    GUIStyle small2;
+
+    void SetKeepTextures(bool keep)
+    {
+        if (keep == keepTextures) return;
+        keepTextures = keep;
+        RefreshMaterials();   // 고른 재질을 새 방식으로 다시 입힘 (복제본은 방식별로 따로 만들어 둠)
+        Say(keep ? "텍스처 유지 · 수치만: 원래 색·텍스처에 금속·매끈함·결만 바꿈" : "전부 바꾸기: 프리셋 색·질감으로 교체");
     }
 
     // [◀] 이름 [▶] — 눌렀으면 true, dir = -1 / +1
