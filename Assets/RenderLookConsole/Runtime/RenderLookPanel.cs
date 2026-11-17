@@ -97,7 +97,8 @@ namespace RenderLook
 
             if (!open)
             {
-                if (GUI.Button(new Rect(12, h - 44, 150, 32), "룩 프리셋  (F6)", button)) open = true;
+                // 화면 아래 가운데 (양옆 패널과 안 겹치게)
+            if (GUI.Button(new Rect(Screen.width / k / 2 - 75, h - 44, 150, 32), "룩 프리셋  (F6)", button)) open = true;
                 return;
             }
 
@@ -108,7 +109,7 @@ namespace RenderLook
             string note = cur == null ? (core.Looks.Count == 0 ? "looks 폴더에 프리셋이 없어요" : $"프리셋 {core.Looks.Count}개 · 자세한 조절은 렌더 룩 콘솔에서") : cur.note;
             float noteH = Mathf.Max(16, small.CalcHeight(new GUIContent(note), inner));
             float H = 12 + 30 + 20 + Row + 4 + noteH + 10 + 22 + 34 + rows.Count * (Row + 6) + 4 + 34 + 22;
-            var box = new Rect(12, h - H - 12, W, H);
+            var box = new Rect(Screen.width / k / 2 - W / 2, h - H - 12, W, H);
             Box(box, Fill);
             float x = box.x + 14, y = box.y + 12;
 

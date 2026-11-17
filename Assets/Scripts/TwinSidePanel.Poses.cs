@@ -54,8 +54,8 @@ public partial class TwinSidePanel
         jointPage.gameObject.SetActive(!pose);
         posePage.gameObject.SetActive(pose);
         // 고른 탭 = 파란 바탕·파란 글씨, 안 고른 탭 = 흐리게
-        jointTabFill.color = pose ? Color.clear : Hex(0x23528C, .85f);
-        poseTabFill.color = pose ? Hex(0x23528C, .85f) : Color.clear;
+        jointTabFill.color = pose ? Color.clear : ActiveFill;
+        poseTabFill.color = pose ? ActiveFill : Color.clear;
         jointTabText.color = pose ? Muted : BlueInk;
         poseTabText.color = pose ? BlueInk : Muted;
         dragging = false;
@@ -91,7 +91,7 @@ public partial class TwinSidePanel
 
         Label(pane, "자세", Inset, 466, 50, 30, 17, semi, Ink);
         poseCount = Label(pane, "", Inset + 44, 469, 40, 26, 14, medium, Muted);
-        saveButton = MakeButton(pane, "SavePose", "+ 지금 자세 저장", ActiveFill, Hex(0x6593D4, .76f),
+        saveButton = MakeButton(pane, "SavePose", "+ 지금 자세 저장", ActiveFill, AccentEdge,
             () => { if (poses) poses.SaveCurrent(); }, out _, out _, 14);
         PlaceRight(saveButton.GetComponent<RectTransform>(), Inset, 465, 128, 32);
 
@@ -99,7 +99,7 @@ public partial class TwinSidePanel
         float y = PoseRowY + PoseRows * PoseRowH;
         poseStatus = Label(pane, "", Inset, y, w, 22, 14, medium, Muted);
         float playW = (w - 8) * .62f;
-        playButton = MakeButton(pane, "PlayPoses", "▶  순서대로 재생", ActiveFill, Hex(0x6593D4, .76f),
+        playButton = MakeButton(pane, "PlayPoses", "▶  순서대로 재생", ActiveFill, AccentEdge,
             () => { if (poses) poses.PlayAll(); }, out _, out _, 15);
         Place(playButton.GetComponent<RectTransform>(), Inset, y + 24, playW, 32);
         stopPlayButton = MakeButton(pane, "StopPoses", "■  정지", CardFill, Border,
@@ -112,7 +112,7 @@ public partial class TwinSidePanel
         recordButton = MakeButton(pane, "RecordMotion", "●  녹화", CardFill, Border,
             () => { if (!poses) return; if (poses.Recording) poses.StopRecord(); else poses.StartRecord(); }, out recordText, out _, 14);
         Place(recordButton.GetComponent<RectTransform>(), Inset, y + 60, recW, 32);
-        playMotionButton = MakeButton(pane, "PlayMotion", "▶  동작 재생 ½", ActiveFill, Hex(0x6593D4, .76f),
+        playMotionButton = MakeButton(pane, "PlayMotion", "▶  동작 재생 ½", ActiveFill, AccentEdge,
             () => { if (poses) poses.PlayMotion(); }, out playMotionText, out _, 14);
         Place(playMotionButton.GetComponent<RectTransform>(), Inset + recW + 5, y + 60, motW, 32);
         delMotionButton = MakeButton(pane, "DeleteMotion", "×", CardFill, Border,
@@ -132,7 +132,7 @@ public partial class TwinSidePanel
         float nameW = w - 20 - goW - delW - 2 * gap;
         poseName[i] = MakeField(row, 20, 0, nameW, PoseRowH - 3, 15, v => { if (poses) poses.Rename(idx, v); }, out poseNameText[i]);
 
-        poseGo[i] = MakeButton(row, "Go", "가기", ActiveFill, Hex(0x6593D4, .76f), () => { if (poses) poses.Go(idx); }, out _, out _, 14);
+        poseGo[i] = MakeButton(row, "Go", "가기", ActiveFill, AccentEdge, () => { if (poses) poses.Go(idx); }, out _, out _, 14);
         Place(poseGo[i].GetComponent<RectTransform>(), 20 + nameW + gap, 0, goW, PoseRowH - 3);
         var del = MakeButton(row, "Delete", "×", CardFill, Border, () => { if (poses) poses.Delete(idx); }, out _, out _, 17);
         Place(del.GetComponent<RectTransform>(), w - delW, 0, delW, PoseRowH - 3);
