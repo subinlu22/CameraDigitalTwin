@@ -1,0 +1,10 @@
+{
+  "focus": "so101_new_calib_camera",
+  "parts": [
+    { "id": "robot_body",  "label": "로봇 몸체",   "root": "so101_new_calib_camera", "materials": ["3d_printed", "RobotYellow_Photo", "Robot_Yellow_Satin"] },
+    { "id": "robot_servo", "label": "로봇 서보",   "root": "so101_new_calib_camera", "materials": ["sts3215"] },
+    { "id": "belt_frame",  "label": "벨트 프레임", "root": "cam_s_merge",            "materials": ["ConveyorFrame_Photo"] },
+    { "id": "belt_cloth",  "label": "벨트 천",     "root": "cam_s_merge",            "materials": ["Belt_Cloth", "ConveyorBelt_Photo"] },
+    { "id": "workbench",   "label": "작업대",      "root": "Line_09",                "materials": ["Workbench_Photo"] }
+  ]
+}

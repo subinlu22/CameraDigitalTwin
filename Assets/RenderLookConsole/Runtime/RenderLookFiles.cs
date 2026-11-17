@@ -9,9 +9,9 @@ using UnityEngine;
 // 빌드 exe는 에디터 임포트가 없어서 파일을 직접 읽음. 같은 파일은 한 번만 읽고 재사용
 // 깨진 JSON은 건너뛰고 콘솔에 이유를 남김
 // =============================================================
-namespace RenderPresets
+namespace RenderLook
 {
-    public static class RenderPresetFiles
+    public static class RenderLookFiles
     {
         public static string Root => Path.Combine(Application.streamingAssetsPath, "RenderTool");
         static string Full(string relative) => Path.Combine(Root, relative);
@@ -33,11 +33,36 @@ namespace RenderPresets
             return list;
         }
 
+        // 부위 이름표 (선택): parts/<씬 이름>.json. 없으면 null
+        public static PartsFile LoadParts(string sceneName)
+        {
+            string path = Full(Path.Combine("parts", sceneName + ".json"));
+            if (!File.Exists(path)) return null;
+            try { return JsonUtility.FromJson<PartsFile>(File.ReadAllText(path)); }
+            catch (Exception e) { Debug.LogWarning($"[렌더 룩] 부위 이름표 읽기 실패 ({path}): {e.Message}"); return null; }
+        }
+
+        // 새 프리셋 저장: 같은 id가 있으면 "_2", "_3"을 붙여 새 파일로 (원래 파일은 안 덮어씀). 저장한 id를 돌려줌
+        public static string Save(string folder, string id, Func<string, string> toJson)
+        {
+            string dir = Full(folder);
+            Directory.CreateDirectory(dir);
+            string baseId = string.IsNullOrEmpty(id) ? "custom" : id, final = baseId;
+            for (int n = 2; File.Exists(Path.Combine(dir, final + ".json")); n++) final = baseId + "_" + n;
+            File.WriteAllText(Path.Combine(dir, final + ".json"), Tidy(toJson(final)), new UTF8Encoding(false));
+            return final;
+        }
+
+        // JsonUtility는 0.78을 0.7799999713897705처럼 씀 → 0.001 단위로 줄여 사람이 읽기 쉽게
+        static string Tidy(string json) => System.Text.RegularExpressions.Regex.Replace(json, @"-?\d+\.\d{5,}", m =>
+            Math.Round(double.Parse(m.Value, System.Globalization.CultureInfo.InvariantCulture), 3)
+                .ToString("0.###", System.Globalization.CultureInfo.InvariantCulture));
+
         static List<T> Load<T>(string folder) where T : class
         {
             var list = new List<T>();
             string dir = Full(folder);
-            if (!Directory.Exists(dir)) { Debug.LogWarning($"[렌더 프리셋] 폴더가 없음: {dir}"); return list; }
+            if (!Directory.Exists(dir)) { Debug.LogWarning($"[렌더 룩] 폴더가 없음: {dir}"); return list; }
             var files = Directory.GetFiles(dir, "*.json");
             Array.Sort(files, StringComparer.Ordinal);
             foreach (var file in files)
@@ -47,7 +72,7 @@ namespace RenderPresets
                     var item = JsonUtility.FromJson<T>(File.ReadAllText(file));
                     if (item != null) list.Add(item);
                 }
-                catch (Exception e) { Debug.LogWarning($"[렌더 프리셋] {folder}/{Path.GetFileName(file)} 읽기 실패: {e.Message}"); }
+                catch (Exception e) { Debug.LogWarning($"[렌더 룩] {folder}/{Path.GetFileName(file)} 읽기 실패: {e.Message}"); }
             }
             return list;
         }
@@ -62,7 +87,7 @@ namespace RenderPresets
             string key = relative + (linear ? "|lin" : "|srgb");
             if (Cache.TryGetValue(key, out var cached) && cached) return cached;
             string path = Full(relative);
-            if (!File.Exists(path)) { Debug.LogWarning($"[렌더 프리셋] 이미지 없음: {path}"); return null; }
+            if (!File.Exists(path)) { Debug.LogWarning($"[렌더 룩] 이미지 없음: {path}"); return null; }
             var tex = new Texture2D(2, 2, TextureFormat.RGBA32, true, linear) { name = Path.GetFileNameWithoutExtension(path) };
             if (!tex.LoadImage(File.ReadAllBytes(path))) return null;
             tex.wrapMode = TextureWrapMode.Repeat; tex.filterMode = FilterMode.Trilinear; tex.anisoLevel = 4;
@@ -94,11 +119,11 @@ namespace RenderPresets
             string path = Full(relative);
             if (!File.Exists(path))
             {
-                Debug.LogWarning($"[렌더 프리셋] HDRI 없음: {path} (python Tools/fetch_polyhaven.py 로 받기)");
+                Debug.LogWarning($"[렌더 룩] HDRI 없음: {path} (python Tools/fetch_polyhaven.py 로 받기)");
                 return null;
             }
             try { return Cache[key] = ReadHdr(File.ReadAllBytes(path), Path.GetFileNameWithoutExtension(path)); }
-            catch (Exception e) { Debug.LogWarning($"[렌더 프리셋] HDRI 읽기 실패 ({path}): {e.Message}"); return null; }
+            catch (Exception e) { Debug.LogWarning($"[렌더 룩] HDRI 읽기 실패 ({path}): {e.Message}"); return null; }
         }
 
         static Texture2D ReadHdr(byte[] d, string name)
