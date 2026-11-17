@@ -13,19 +13,20 @@
 <div class="stage" id="stage">
   <img id="view" class="hidden" alt="유니티 렌더 뷰">
   <div class="empty" id="empty"><b>렌더 뷰를 기다리는 중</b>유니티에서 플레이를 누르면 여기에 장면이 보여요.<br>휠 = 확대 · 끌기 = 이동 · 더블클릭 = 전체 · Tab = 패널 숨기기<br>재질 공을 이 화면에 끌어다 놓으면 고른 부위에 입혀져요.</div>
+  <!-- 렌더 뷰 위에 뜨는 것들 -->
+  <div class="chip-live" id="liveChip"><i></i><span id="liveText">RENDER VIEW</span></div>
+  <div class="toggle">
+    <button class="on" data-t="dark">어둡게</button>
+    <button data-t="light">밝게</button>
+  </div>
+  <div class="toast fade" id="toast"><i></i><span id="toastText"></span></div>
+  <div class="hud">
+    <button id="panels" title="Tab" class="wide">패널 숨기기</button>
+    <span class="sep"></span>
+    <button id="zoomOut" title="축소" aria-label="축소">−</button><b id="zoomVal">100%</b><button id="zoomIn" title="확대" aria-label="확대">+</button>
+    <button id="zoomFit" title="전체 보기 (더블클릭)" class="wide">맞춤</button>
+  </div>
 </div>
-<div class="hud">
-  <span class="muted">렌더 뷰 · UI 없이 카메라만</span>
-  <button id="zoomOut" title="축소" aria-label="축소">−</button><b id="zoomVal">100%</b><button id="zoomIn" title="확대" aria-label="확대">+</button>
-  <button id="zoomFit" title="전체 보기 (더블클릭)">맞춤</button>
-  <button id="panels" title="Tab">패널 숨기기</button>
-</div>
-
-<div class="toggle">
-  <button class="on" data-t="light">밝은 테마</button>
-  <button data-t="dark">어두운 테마</button>
-</div>
-<div class="toast fade" id="toast"><i></i><span id="toastText"></span></div>
 
 <aside class="panel main">
   <div class="head">

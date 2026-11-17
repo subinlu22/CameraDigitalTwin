@@ -112,7 +112,7 @@ LOOK_SLIDERS.forEach(d => {
 function drawLooks() {
   const items = [{ id: "", name: "원래 조명", note: "장면 그대로" }, ...S.looks];
   $("lookCount").textContent = `${S.looks.length}개`;
-  $("looks").innerHTML = items.map(l => `<button class="look${(S.look || "") === l.id ? " on" : ""}" data-id="${esc(l.id)}">
+  $("looks").innerHTML = items.map(l => `<button class="look${(S.look || "") === l.id ? " on" : ""}${l.thumb ? "" : " plain"}" data-id="${esc(l.id)}">
       ${l.thumb ? `<img class="ph" src="/assets/${l.thumb}" alt="">` : `<span class="ph"></span>`}
       <b>${esc(l.name)}</b><small>${esc(l.id ? (l.note || l.id) : l.note)}</small></button>`).join("");
   $("looks").querySelectorAll(".look").forEach(b => b.onclick = () => { editAt = 0; post({ cmd: "look", id: b.dataset.id }); });
@@ -266,7 +266,7 @@ function setTheme(t) {
   try { localStorage.setItem("rlc-theme", t); } catch (e) {}
 }
 document.querySelectorAll(".toggle button").forEach(b => b.onclick = () => setTheme(b.dataset.t));
-try { setTheme(localStorage.getItem("rlc-theme") || "light"); } catch (e) { setTheme("light"); }
+try { setTheme(localStorage.getItem("rlc-theme") || "dark"); } catch (e) { setTheme("dark"); }
 
 let toastTimer = 0;
 function toast(t) {
@@ -309,12 +309,14 @@ function zoomAt(factor, ux = 0.5, uy = 0.5) {   // ux·uy = 화면에서 고정�
 }
 const stage = $("stage");
 stage.addEventListener("wheel", e => {
+  if (onOverlay(e)) return;
   e.preventDefault();
   const r = stage.getBoundingClientRect();
   zoomAt(Math.pow(1.0015, -e.deltaY), (e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height);
 }, { passive: false });
 let drag = null;
-stage.addEventListener("pointerdown", e => { if (e.button !== 0) return; drag = { x: e.clientX, y: e.clientY }; stage.setPointerCapture(e.pointerId); stage.classList.add("grab"); });
+const onOverlay = (e) => e.target.closest(".hud, .toggle, .toast, .chip-live");   // 렌더 뷰 위 버튼은 끌기·확대 안 함
+stage.addEventListener("pointerdown", e => { if (e.button !== 0 || onOverlay(e)) return; drag = { x: e.clientX, y: e.clientY }; stage.setPointerCapture(e.pointerId); stage.classList.add("grab"); });
 stage.addEventListener("pointermove", e => {
   if (!drag) return;
   const r = stage.getBoundingClientRect();
@@ -322,7 +324,7 @@ stage.addEventListener("pointermove", e => {
   drag = { x: e.clientX, y: e.clientY }; sendView();
 });
 stage.addEventListener("pointerup", () => { drag = null; stage.classList.remove("grab"); });
-stage.addEventListener("dblclick", () => { V.zoom = 1; V.cx = V.cy = 0.5; sendView(); });
+stage.addEventListener("dblclick", (e) => { if (onOverlay(e)) return; V.zoom = 1; V.cx = V.cy = 0.5; sendView(); });
 $("zoomIn").onclick = () => zoomAt(1.5);
 $("zoomOut").onclick = () => zoomAt(1 / 1.5);
 $("zoomFit").onclick = () => { V.zoom = 1; V.cx = V.cy = 0.5; sendView(); };
@@ -342,6 +344,9 @@ async function poll() {
     $("live").classList.toggle("on", r.connected);
     $("conn").textContent = r.connected ? "유니티 연결됨" : r.state ? "연결 끊김" : "유니티 기다리는 중";
     if (r.connected) startView();
+    const img = $("view");
+    $("liveChip").classList.toggle("on", r.connected && img.naturalWidth > 0);
+    $("liveText").textContent = r.connected && img.naturalWidth ? `LIVE · ${img.naturalWidth}×${img.naturalHeight}${V.zoom > 1.01 ? " · " + Math.round(V.zoom * 100) + "%" : ""}` : "RENDER VIEW";
     if (r.connected && !wasConn && viewOn) sendView();   // 유니티를 다시 켜면 화면 크기·확대를 다시 알려 줌
     wasConn = r.connected;
     if (r.state && r.state.seq !== lastSeq) {
