@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>렌더 룩 콘솔</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="bar">
+  <div class="brand"><span class="logo"></span><b>렌더 룩 콘솔</b></div>
+  <span id="conn" class="pill off">유니티 기다리는 중</span>
+  <span id="scene" class="muted"></span>
+  <span class="grow"></span>
+  <button id="btnReset" class="ghost" title="조명 분위기와 모든 부위 재질을 처음 상태로">원래대로</button>
+  <button id="btnSaveLook" class="ghost" title="지금 조명 분위기와 세부 수치를 새 룩 프리셋으로">룩 저장</button>
+  <button id="btnSaveMat" class="primary" title="고른 부위의 지금 재질 수치를 새 재질 프리셋으로">재질 저장</button>
+  <button id="btnQuit" class="icon" title="콘솔 종료" aria-label="콘솔 종료">✕</button>
+</header>
+
+<main>
+  <section class="col look">
+    <h2>조명 분위기</h2>
+    <div id="looks" class="list"></div>
+    <p id="lookNote" class="note"></p>
+    <h3>세부 조절</h3>
+    <div id="lookSliders" class="sliders"></div>
+  </section>
+
+  <section class="col parts">
+    <div class="head">
+      <h2>부위</h2>
+      <button id="btnRescan" class="tiny" title="장면을 다시 훑어 부위 목록 새로 고침">다시 찾기</button>
+    </div>
+    <div id="labeled" class="list"></div>
+    <details id="autoBox">
+      <summary>장면에서 찾은 재질 <span id="autoCount" class="muted"></span></summary>
+      <input id="search" type="search" placeholder="재질 이름 찾기">
+      <div id="auto" class="list small"></div>
+    </details>
+  </section>
+
+  <section class="col mat">
+    <h2 id="partTitle">부위를 고르세요</h2>
+    <p class="note" id="partHint">왼쪽에서 부위를 누르면 그 부위의 재질을 바꿀 수 있어요. 조명만 바꾸려면 재질은 그대로 두면 돼요.</p>
+    <div id="matPanel" class="hidden">
+      <h3>적용 방식</h3>
+      <div class="seg" id="modes">
+        <button data-mode="original">원래 재질</button>
+        <button data-mode="replace">전부 바꾸기</button>
+        <button data-mode="keep">텍스처 유지 · 수치만</button>
+      </div>
+      <p class="note" id="modeNote"></p>
+      <h3>재질 프리셋</h3>
+      <div id="mats" class="chips"></div>
+      <h3>수치 <span class="muted">움직이면 유니티에 바로 반영</span></h3>
+      <div class="sliders" id="matSliders"></div>
+      <div class="row color"><label>색</label><input id="color" type="color"><span id="colorNote" class="muted"></span></div>
+    </div>
+  </section>
+</main>
+
+<footer id="msg" class="foot">원본 재질 파일은 안 바뀌어요 · [원래대로]를 누르면 처음 상태로 돌아와요</footer>
+<script src="app.js"></script>
+</body>
+</html>
