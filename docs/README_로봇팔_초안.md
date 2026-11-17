@@ -22,6 +22,7 @@
 | 로봇 없이 연습 (패널·로봇 연결 없이 Unity 팔만) | ⏳ 코드만 |
 | 연속 동작 녹화 → 절반 속도 재생 | ⏳ 코드만 |
 | Unity 안에서 뚜껑 집기 (재생 중 집기 직전에 연습용 뚜껑 놓기) | ⏳ 코드만 |
+| 가벼운 연습 룩 ↔ 데모 룩 전환(F5), FPS 표시(F4) | ⏳ 코드만 |
 | 빌드 exe 하나로 연습·실물 모드 | ⏳ |
 
 ## 환경
@@ -55,6 +56,7 @@
 | `ArmPoseMover` | 벨트를 피하는 경유 자세 계산 (SafePath) |
 | `PoseLibrary` | 자세·그룹·녹화 동작 저장 (`StreamingAssets/so101_poses.json`), 순서대로 재생, 동작 재생 |
 | `PracticeLid` | 연습용 뚜껑을 두 손가락 사이 아래 면에 놓음 |
+| `LookQualitySwitch` | 가벼운 연습 룩 ↔ 데모 룩, FPS 측정 |
 | `GripperGrab` | 두 손가락이 닿고 더 쥐면 잡고, 벌리면 놓음 |
 | `TwinSidePanel` (+ `.Poses`) | 오른쪽 패널: 관절 표·수동 제어 / [자세] 탭 |
 | `Tools/so101_bridge` | Python 컨트롤 패널 — 흰 팔에 쓰는 유일한 길, 안전 규칙 담당 |
