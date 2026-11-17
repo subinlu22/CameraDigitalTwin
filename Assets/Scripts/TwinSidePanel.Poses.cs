@@ -13,6 +13,7 @@ public partial class TwinSidePanel
     const float RobotTabH = 44f;       // 탭 줄 높이 → 탭 내용이 이만큼 아래로
     const int PoseRows = 6;            // 화면에 보이는 자세 줄 수 (그룹마다 저장도 이만큼까지) — 아래 공통 버튼과 안 겹치게
     const float PoseRowY = 504f, PoseRowH = 30f;   // 녹화 줄 자리를 만들려고 34 → 30
+    const float StatusShowSec = 4f;    // 방금 한 일(저장·삭제 등)을 상태 줄에 보여 주는 시간
 
     RectTransform jointPage, posePage;
     Image jointTabFill, poseTabFill;
@@ -76,11 +77,11 @@ public partial class TwinSidePanel
         Rule(pane, Inset, 414, w);
 
         // 그룹 줄: ◀ [이름] ▶ [+] [×]
-        const float sq = 32, gap = 5;
+        const float sq = 28, gap = 5;   // 네모 버튼을 줄여 그룹 이름 칸을 넓힘 (긴 이름 안 잘리게)
         float nameW = w - 4 * sq - 4 * gap;
         prevGroup = MakeButton(pane, "PrevGroup", "◀", CardFill, Border, () => { if (poses) poses.NextGroup(-1); }, out _, out _);
         Place(prevGroup.GetComponent<RectTransform>(), Inset, 424, sq, 32);
-        groupName = MakeField(pane, Inset + sq + gap, 424, nameW, 32, 14, v => { if (poses) poses.RenameGroup(v); }, out _);
+        groupName = MakeField(pane, Inset + sq + gap, 424, nameW, 32, 13, v => { if (poses) poses.RenameGroup(v); }, out _);
         nextGroup = MakeButton(pane, "NextGroup", "▶", CardFill, Border, () => { if (poses) poses.NextGroup(1); }, out _, out _);
         Place(nextGroup.GetComponent<RectTransform>(), Inset + sq + nameW + 2 * gap, 424, sq, 32);
         addGroup = MakeButton(pane, "AddGroup", "+", CardFill, Border, () => { if (poses) poses.AddGroup(); }, out _, out _, 18);
@@ -192,10 +193,14 @@ public partial class TwinSidePanel
         playMotionText.text = poses.HasMotion ? "▶ 동작 재생 ½" : "녹화 없음";
         delMotionButton.interactable = !playing && !rec && poses.HasMotion;
         saveButton.interactable = robot.Ready && count < PoseRows;
+        // 상태 줄: 재생·녹화·이동 중이면 진행 상황, 방금 한 일은 몇 초만 보여 주고 → 그다음은 "다음에 할 일" 안내
+        bool fresh = Time.time - poses.StatusTime < StatusShowSec && poses.Status != "";
         poseStatus.text = playing || rec ? poses.Status
             : robot.MovingPose ? robot.MoveStatus
-            : count >= PoseRows ? $"최대 {PoseRows}개 — 지우고 저장"
-            : !canGo ? "가기·재생은 [유니티로 조종] 후 (로봇 없이도 됨)"
-            : poses.HasMotion && poses.Status == "" ? $"녹화한 동작 {poses.MotionSec:F1}초" : poses.Status;
+            : fresh ? poses.Status
+            : count >= PoseRows ? $"최대 {PoseRows}개 — 하나 지우고 저장"
+            : !canGo ? $"가기·재생은 아래 [{(robot.Live ? "유니티로 조종" : "로봇 없이 연습")}]을 누른 뒤"
+            : poses.HasMotion ? $"녹화한 동작 {poses.MotionSec:F1}초 · ▶ 누르면 절반 속도로 재생"
+            : "● 녹화 → 팔 움직이기 → ■ 멈춤 = 동작 저장";
     }
 }

@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
+using System.Text.RegularExpressions;
 using UnityEngine;
 
 // =============================================================
@@ -53,7 +55,10 @@ public class PoseLibrary : MonoBehaviour
     public Group Current => data.groups[GroupIndex];
     public IReadOnlyList<Pose> Poses => Current.poses;
     public int Version { get; private set; }            // 목록이 바뀔 때마다 +1 (화면이 다시 그릴지 판단)
-    public string Status { get; private set; } = "";
+    // 상태 글: 바뀐 시각도 기억 → 화면은 몇 초 지나면 사용법 안내로 바꿔 보여 줌
+    string status = "";
+    public string Status { get => status; private set { status = value; StatusTime = Time.time; } }
+    public float StatusTime { get; private set; } = -100f;
     public bool CanGo => arm && arm.Ready && arm.CurrentMode != UnityToFollowerGUI.Mode.Leader && !arm.EStopped;
 
     // 재생 상태: PlayIndex = 지금 가는 자세 번호 (-1 = 재생 안 함)
@@ -112,10 +117,14 @@ public class PoseLibrary : MonoBehaviour
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(FilePath));
-            File.WriteAllText(FilePath, JsonUtility.ToJson(data, true));
+            File.WriteAllText(FilePath, Tidy(JsonUtility.ToJson(data, true)));
         }
         catch (Exception e) { Status = "파일 저장 실패: " + e.Message; }
     }
+
+    // JsonUtility는 51.4를 51.400001525878909처럼 씀 → 0.001 단위로 줄여서 사람이 읽기 쉽게 (각도는 0.1° 단위로 저장하니 값은 같음)
+    static string Tidy(string json) => Regex.Replace(json, @"-?\d+\.\d{5,}", m =>
+        Math.Round(double.Parse(m.Value, CultureInfo.InvariantCulture), 3).ToString("0.###", CultureInfo.InvariantCulture));
 
     // ---------- 동작 ----------
     public void SaveCurrent()
