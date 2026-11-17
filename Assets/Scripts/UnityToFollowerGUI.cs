@@ -35,7 +35,7 @@ public class UnityToFollowerGUI : MonoBehaviour
     // 상수라 씬에 저장되지 않음 (씬에 예전 restPoseDeg 집게 0°가 남아 있어서 덮어쓰던 문제)
     public const float ClosedGripDeg = -10f;
     // 유니티로 조종할 때 관절 최대 속도 (도/초). 상수라 씬 값(예전 10°)에 안 덮임. 브리지 상한 90°/초 안쪽
-    public const float ControlSpeedDps = 15f;
+    public const float ControlSpeedDps = 25f;
 
     LeaderArmReceiver receiver;
     RobotJointTester tester;
