@@ -26,15 +26,15 @@ namespace RenderLook
         public LookParams look;
     }
 
-    [Serializable] class LookInfo { public string id, name, note; }
-    [Serializable] class MatInfo { public string id, name, note, category; public float[] color; public float metallic, roughness; }
-    [Serializable] class PartInfo { public string id, label; public bool auto, found; public int count; }
+    [Serializable] class LookInfo { public string id, name, note, thumb; }
+    [Serializable] class MatInfo { public string id, name, note, category, thumb; public float[] color, rMetal, rRough, rNormal; public float metallic, roughness; }
+    [Serializable] class PartInfo { public string id, label; public bool auto, found; public int count; public float[] color; public float metallic, smoothness; }
 
     [Serializable]
     class StateMsg
     {
         public string type = "render_state";
-        public string scene, msg, look;
+        public string scene, msg, look, root;   // root = 프리셋 폴더 (콘솔이 썸네일을 여기서 읽음)
         public int seq;
         public LookParams lookParams;
         public LookInfo[] looks;
@@ -57,6 +57,10 @@ namespace RenderLook
         IPEndPoint console = new IPEndPoint(IPAddress.Loopback, ConsolePort);
         bool dirty = true; float nextSend, lastChange;
         int seq;
+        float lastHeard = -99f;
+
+        // 콘솔이 3초 안에 말을 걸었음 (렌더 뷰는 이때만 보냄)
+        public bool ConsoleAlive => Time.unscaledTime - lastHeard < 3f;
 
         void Start()
         {
@@ -97,9 +101,12 @@ namespace RenderLook
             CmdMsg c;
             try { c = JsonUtility.FromJson<CmdMsg>(text); } catch { return; }
             if (c == null || c.type != "render_cmd") return;
+            bool wasAlive = ConsoleAlive;
+            lastHeard = Time.unscaledTime;
             switch (c.cmd)
             {
                 case "hello": dirty = true; break;
+                case "ping": if (!wasAlive) dirty = true; break;
                 case "rescan": core.Reload(); break;
                 case "look": core.SetLook(c.id); break;
                 case "look_params": core.SetParams(c.look); break;
@@ -115,15 +122,21 @@ namespace RenderLook
             if (tx == null) return;
             dirty = false; nextSend = Time.unscaledTime + Heartbeat;
             var looks = new List<LookInfo>();
-            foreach (var l in core.Looks) looks.Add(new LookInfo { id = l.id, name = l.displayName, note = l.note });
+            foreach (var l in core.Looks)
+            {
+                string t = System.IO.File.Exists(System.IO.Path.Combine(RenderLookFiles.Root, "thumbnails", "looks", l.id + ".jpg")) ? $"thumbnails/looks/{l.id}.jpg" : l.thumbnail;
+                looks.Add(new LookInfo { id = l.id, name = l.displayName, note = l.note, thumb = t });
+            }
             var mats = new List<MatInfo>();
             foreach (var m in core.Materials)
-                mats.Add(new MatInfo { id = m.id, name = m.displayName, note = m.note, category = m.category, color = m.@base.color, metallic = m.@base.metallic, roughness = m.@base.roughness });
+                mats.Add(new MatInfo { id = m.id, name = m.displayName, note = m.note, category = m.category, thumb = m.thumbnail, color = m.@base.color,
+                                       metallic = m.@base.metallic, roughness = m.@base.roughness, rMetal = m.ranges?.metallic, rRough = m.ranges?.roughness, rNormal = m.ranges?.normalStrength });
             var parts = new List<PartInfo>();
-            foreach (var p in core.Parts) parts.Add(new PartInfo { id = p.id, label = p.label, auto = p.auto, found = p.found, count = p.count });
+            foreach (var p in core.Parts)
+                parts.Add(new PartInfo { id = p.id, label = p.label, auto = p.auto, found = p.found, count = p.count, color = p.color, metallic = p.metallic, smoothness = p.smoothness });
             var msg = new StateMsg
             {
-                scene = SceneManager.GetActiveScene().name, msg = core.Message, look = core.LookId, seq = ++seq,
+                scene = SceneManager.GetActiveScene().name, root = RenderLookFiles.Root, msg = core.Message, look = core.LookId, seq = ++seq,
                 lookParams = core.Params, looks = looks.ToArray(), materials = mats.ToArray(), parts = parts.ToArray(),
                 states = new List<PartState>(core.States.Values).ToArray(),
             };

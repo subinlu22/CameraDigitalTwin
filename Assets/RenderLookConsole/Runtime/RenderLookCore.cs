@@ -46,6 +46,8 @@ namespace RenderLook
         public HashSet<string> materials = new HashSet<string>();
         public int count;                  // 이 부위를 쓰는 렌더러 칸 수
         public bool found;                 // 지금 화면에 보이는 오브젝트가 있음
+        public float[] color = { 0.8f, 0.8f, 0.8f };   // 원래 재질 색·금속·매끈함 (콘솔의 "원본" 공 그림용)
+        public float metallic, smoothness = 0.5f;
     }
 
     public class RenderLookCore : MonoBehaviour
@@ -75,6 +77,7 @@ namespace RenderLook
             go.AddComponent<RenderLookCore>();
             go.AddComponent<RenderLookLink>();
             go.AddComponent<RenderLookPanel>();
+            go.AddComponent<RenderLookStream>();
         }
 
         void Awake() { Instance = this; }
@@ -144,6 +147,12 @@ namespace RenderLook
                         if (src.shader != standard) continue;   // 값을 쓸 수 있는 Standard 재질만
                         if (!auto.TryGetValue(src.name, out part))
                             auto[src.name] = part = new Part { id = "mat:" + src.name, label = src.name, auto = true, materials = { src.name } };
+                    }
+                    if (part.count == 0 && src.HasProperty("_Color"))
+                    {
+                        var col = src.color; part.color = new[] { col.r, col.g, col.b };
+                        if (src.HasProperty("_Metallic")) part.metallic = src.GetFloat("_Metallic");
+                        if (src.HasProperty("_Glossiness")) part.smoothness = src.GetFloat("_Glossiness");
                     }
                     part.count++;
                     if (r.gameObject.activeInHierarchy) part.found = true;
