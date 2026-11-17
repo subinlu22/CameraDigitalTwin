@@ -18,7 +18,7 @@ const MODE_NOTE = {
   keep: "원래 색·텍스처는 두고 금속성·거칠기·결만 바꿔요.",
 };
 
-let S = null, sel = null, editAt = 0, lastSeq = -1, showAuto = false, lastMsg = "";
+let S = null, sel = null, editAt = 0, lastSeq = -1, showAuto = false, lastMsg = "", wasConn = false;
 const fresh = () => performance.now() - editAt > 800;
 const post = (cmd) => fetch("/api/cmd", { method: "POST", body: JSON.stringify(cmd) }).catch(() => {});
 const pend = {};
@@ -73,15 +73,20 @@ function partBall(p, st, cls) {
 }
 
 // ---------------------------------------------------------------- 슬라이더 (시안과 같은 모양, 파란 띠 = 프리셋 허용 범위)
-function slider(parent, [key, label, min, max, step], onInput) {
+// getDefault() = 이 값의 기본값 (없으면 null) → ↺ 버튼으로 그 값만 되돌림
+function slider(parent, [key, label, min, max, step], onInput, getDefault) {
   const el = document.createElement("div");
   el.className = "slider";
-  el.innerHTML = `<div class="top"><strong>${label}</strong><em><span class="v"></span><span class="r"></span></em></div>
+  el.innerHTML = `<div class="top"><strong>${label}</strong><em><span class="v"></span><span class="r"></span>
+      <button class="undo" title="기본값으로 되돌리기" aria-label="${label} 기본값으로 되돌리기">↺</button></em></div>
     <div class="track"><div class="rail"></div><div class="bandv hidden"></div><input type="range" min="${min}" max="${max}" step="${step}"></div>`;
-  const input = el.querySelector("input"), v = el.querySelector(".v"), band = el.querySelector(".bandv"), r = el.querySelector(".r");
+  const input = el.querySelector("input"), v = el.querySelector(".v"), band = el.querySelector(".bandv"), r = el.querySelector(".r"), undo = el.querySelector(".undo");
   const pct = (x) => (x - min) / (max - min) * 100;
-  input.oninput = () => { v.textContent = fmt(input.value, step); onInput(key, +input.value); };
-  el.set = (val) => { input.value = val; v.textContent = fmt(val, step); };
+  const mark = () => { const d = getDefault && getDefault(); undo.classList.toggle("show", d != null && Math.abs(+input.value - d) > step / 2); undo.title = d != null ? `기본값 ${fmt(d, step)}으로 되돌리기` : ""; };
+  input.oninput = () => { v.textContent = fmt(input.value, step); mark(); onInput(key, +input.value); };
+  undo.onclick = () => { const d = getDefault && getDefault(); if (d == null) return; input.value = d; input.oninput(); };
+  el.set = (val) => { input.value = val; v.textContent = fmt(val, step); mark(); };
+  el.mark = mark;
   el.range = (rg) => {
     const ok = rg && rg.length === 2;
     band.classList.toggle("hidden", !ok);
@@ -100,7 +105,7 @@ LOOK_SLIDERS.forEach(d => {
     const look = {};
     for (const k in lookSl) look[k] = +lookSl[k].querySelector("input").value;
     throttled("look", () => ({ cmd: "look_params", look }));
-  });
+  }, () => S && S.look && S.lookDefaults ? S.lookDefaults[d[0]] : null);
 });
 
 function drawLooks() {
@@ -145,8 +150,16 @@ $("search").oninput = () => drawParts();
 
 // ---------------------------------------------------------------- 재질 작업대
 const matSl = {};
-MAT_SLIDERS.forEach(d => { matSl[d[0]] = slider($("sliders"), d, () => sendPart(false)); });
-$("c").oninput = (e) => { $("cHex").textContent = e.target.value.toUpperCase(); sendPart(false); };
+MAT_SLIDERS.forEach(d => {
+  matSl[d[0]] = slider($("sliders"), d, () => sendPart(false), () => {
+    const st = sel && partState(sel), m = st && st.mode !== "original" && preset(st.preset);
+    return m ? m[d[0]] : null;
+  });
+});
+const colorDefault = () => { const st = sel && partState(sel), m = st && st.mode === "replace" && preset(st.preset); return m ? hex(m.color) : null; };
+const markColor = () => { const d = colorDefault(); $("cUndo").classList.toggle("show", !!d && d !== $("c").value); };
+$("c").oninput = (e) => { $("cHex").textContent = e.target.value.toUpperCase(); markColor(); sendPart(false); };
+$("cUndo").onclick = () => { const d = colorDefault(); if (!d) return; $("c").value = d; $("c").oninput({ target: $("c") }); };
 
 function current() {
   const st = partState(sel);
@@ -197,6 +210,7 @@ function drawBench() {
   $("rangeHint").textContent = !on ? "원본은 고칠 수 없어요 · 재질을 골라 보세요" : m ? "파란 띠 = 프리셋 권장 범위" : "";
   $("colorRow").classList.toggle("off", st.mode !== "replace");
   if (fresh()) { $("c").value = hex(st.mode === "keep" ? p.color : st.color); $("cHex").textContent = st.mode === "keep" ? "원래 색 유지" : $("c").value.toUpperCase(); }
+  markColor();
   MAT_SLIDERS.forEach(([k, , , , , rk]) => {
     matSl[k].enable(on);
     matSl[k].range(on && m && rk ? m[rk] : null);
@@ -259,7 +273,10 @@ function toast(t) {
 }
 
 // ---------------------------------------------------------------- 렌더 뷰
+// 유니티는 이 화면 크기(픽셀) 그대로 그려 보냄 → 선명. 확대·이동도 유니티가 그 부분을 다시 그림 (그림을 늘리지 않음)
+//   휠 = 마우스 있는 곳으로 확대/축소 · 끌기 = 이동 · 더블클릭 / [맞춤] = 전체 · Tab / [패널 숨기기] = 렌더 뷰만 크게
 let viewOn = false;
+const V = { zoom: 1, cx: 0.5, cy: 0.5 };
 function startView() {
   if (viewOn) return;
   viewOn = true;
@@ -267,7 +284,52 @@ function startView() {
   img.onload = () => { img.classList.remove("hidden"); $("empty").classList.add("hidden"); };
   img.onerror = () => { img.classList.add("hidden"); $("empty").classList.remove("hidden"); viewOn = false; };
   img.src = "/stream?" + Date.now();
+  sendView();
 }
+function clampView() {
+  V.zoom = Math.min(12, Math.max(1, V.zoom));
+  const h = 0.5 / V.zoom;
+  V.cx = Math.min(1 - h, Math.max(h, V.cx)); V.cy = Math.min(1 - h, Math.max(h, V.cy));
+  $("zoomVal").textContent = Math.round(V.zoom * 100) + "%";
+}
+function sendView() {
+  clampView();
+  const box = $("stage").getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+  const keep = editAt;   // 확대·이동은 슬라이더 맞춤을 막지 않음
+  throttled("view", () => ({ cmd: "view", w: Math.round(box.width * dpr), h: Math.round(box.height * dpr), zoom: V.zoom, cx: V.cx, cy: V.cy }));
+  editAt = keep;
+}
+function zoomAt(factor, ux = 0.5, uy = 0.5) {   // ux·uy = 화면에서 고정할 점 (0~1)
+  const px = V.cx + (ux - 0.5) / V.zoom, py = V.cy + (uy - 0.5) / V.zoom;
+  V.zoom *= factor; clampView();
+  V.cx = px - (ux - 0.5) / V.zoom; V.cy = py - (uy - 0.5) / V.zoom;
+  sendView();
+}
+const stage = $("stage");
+stage.addEventListener("wheel", e => {
+  e.preventDefault();
+  const r = stage.getBoundingClientRect();
+  zoomAt(Math.pow(1.0015, -e.deltaY), (e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height);
+}, { passive: false });
+let drag = null;
+stage.addEventListener("pointerdown", e => { if (e.button !== 0) return; drag = { x: e.clientX, y: e.clientY }; stage.setPointerCapture(e.pointerId); stage.classList.add("grab"); });
+stage.addEventListener("pointermove", e => {
+  if (!drag) return;
+  const r = stage.getBoundingClientRect();
+  V.cx -= (e.clientX - drag.x) / r.width / V.zoom; V.cy -= (e.clientY - drag.y) / r.height / V.zoom;
+  drag = { x: e.clientX, y: e.clientY }; sendView();
+});
+stage.addEventListener("pointerup", () => { drag = null; stage.classList.remove("grab"); });
+stage.addEventListener("dblclick", () => { V.zoom = 1; V.cx = V.cy = 0.5; sendView(); });
+$("zoomIn").onclick = () => zoomAt(1.5);
+$("zoomOut").onclick = () => zoomAt(1 / 1.5);
+$("zoomFit").onclick = () => { V.zoom = 1; V.cx = V.cy = 0.5; sendView(); };
+function togglePanels() { document.body.classList.toggle("full"); $("panels").textContent = document.body.classList.contains("full") ? "패널 보이기" : "패널 숨기기"; setTimeout(sendView, 380); }
+$("panels").onclick = togglePanels;
+document.addEventListener("keydown", e => { if (e.key === "Tab" && !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) { e.preventDefault(); togglePanels(); } });
+window.addEventListener("resize", () => sendView());
+// 작업대를 열고 닫으면 렌더 뷰 크기가 바뀜 → 다 바뀐 뒤 다시 알림
+new MutationObserver(() => setTimeout(sendView, 380)).observe(document.body, { attributes: true, attributeFilter: ["class"] });
 
 // ---------------------------------------------------------------- 받아서 그리기
 async function poll() {
@@ -276,6 +338,8 @@ async function poll() {
     $("live").classList.toggle("on", r.connected);
     $("conn").textContent = r.connected ? "유니티 연결됨" : r.state ? "연결 끊김" : "유니티 기다리는 중";
     if (r.connected) startView();
+    if (r.connected && !wasConn && viewOn) sendView();   // 유니티를 다시 켜면 화면 크기·확대를 다시 알려 줌
+    wasConn = r.connected;
     if (r.state && r.state.seq !== lastSeq) {
       S = r.state; lastSeq = S.seq;
       $("sceneInfo").textContent = `${S.scene} · 부위 ${S.parts.length}`;

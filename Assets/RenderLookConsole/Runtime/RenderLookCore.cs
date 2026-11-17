@@ -64,6 +64,7 @@ namespace RenderLook
         public List<Part> Parts { get; } = new List<Part>();
         public string LookId => look != null ? look.id : null;
         public LookParams Params { get; private set; } = new LookParams();
+        public LookParams DefaultParams => look != null ? ParamsFrom(look) : null;   // 고른 룩의 원래 수치 (↺ 되돌리기용)
         public readonly Dictionary<string, PartState> States = new Dictionary<string, PartState>();
 
         PartsFile partsFile;

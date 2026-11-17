@@ -22,12 +22,14 @@ namespace RenderLook
     {
         public string type, cmd, id, name;
         public bool pick;
+        public int w, h;                  // view: 렌더 뷰 픽셀 크기
+        public float zoom, cx, cy;        // view: 확대·보는 곳
         public PartState part;
         public LookParams look;
     }
 
     [Serializable] class LookInfo { public string id, name, note, thumb; }
-    [Serializable] class MatInfo { public string id, name, note, category, thumb; public float[] color, rMetal, rRough, rNormal; public float metallic, roughness; }
+    [Serializable] class MatInfo { public string id, name, note, category, thumb; public float[] color, rMetal, rRough, rNormal; public float metallic, roughness, normalStrength, tiling; }
     [Serializable] class PartInfo { public string id, label; public bool auto, found; public int count; public float[] color; public float metallic, smoothness; }
 
     [Serializable]
@@ -36,7 +38,7 @@ namespace RenderLook
         public string type = "render_state";
         public string scene, msg, look, root;   // root = 프리셋 폴더 (콘솔이 썸네일을 여기서 읽음)
         public int seq;
-        public LookParams lookParams;
+        public LookParams lookParams, lookDefaults;
         public LookInfo[] looks;
         public MatInfo[] materials;
         public PartInfo[] parts;
@@ -112,6 +114,7 @@ namespace RenderLook
                 case "look_params": core.SetParams(c.look); break;
                 case "part": if (c.part != null) core.SetPart(c.part, c.pick); break;
                 case "reset": core.ResetAll(); break;
+                case "view": GetComponent<RenderLookStream>()?.SetView(c.w, c.h, c.zoom, c.cx, c.cy); break;
                 case "save_material": core.SaveMaterial(c.id, c.name); break;
                 case "save_look": core.SaveLook(c.name); break;
             }
@@ -130,14 +133,15 @@ namespace RenderLook
             var mats = new List<MatInfo>();
             foreach (var m in core.Materials)
                 mats.Add(new MatInfo { id = m.id, name = m.displayName, note = m.note, category = m.category, thumb = m.thumbnail, color = m.@base.color,
-                                       metallic = m.@base.metallic, roughness = m.@base.roughness, rMetal = m.ranges?.metallic, rRough = m.ranges?.roughness, rNormal = m.ranges?.normalStrength });
+                                       metallic = m.@base.metallic, roughness = m.@base.roughness,
+                                       normalStrength = m.@base.normalStrength, tiling = m.@base.textureScale > 0 ? m.@base.textureScale : 1f, rMetal = m.ranges?.metallic, rRough = m.ranges?.roughness, rNormal = m.ranges?.normalStrength });
             var parts = new List<PartInfo>();
             foreach (var p in core.Parts)
                 parts.Add(new PartInfo { id = p.id, label = p.label, auto = p.auto, found = p.found, count = p.count, color = p.color, metallic = p.metallic, smoothness = p.smoothness });
             var msg = new StateMsg
             {
                 scene = SceneManager.GetActiveScene().name, root = RenderLookFiles.Root, msg = core.Message, look = core.LookId, seq = ++seq,
-                lookParams = core.Params, looks = looks.ToArray(), materials = mats.ToArray(), parts = parts.ToArray(),
+                lookParams = core.Params, lookDefaults = core.DefaultParams, looks = looks.ToArray(), materials = mats.ToArray(), parts = parts.ToArray(),
                 states = new List<PartState>(core.States.Values).ToArray(),
             };
             var bytes = Encoding.UTF8.GetBytes(JsonUtility.ToJson(msg));
