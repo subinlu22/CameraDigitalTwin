@@ -263,10 +263,10 @@ $("saveMat").onclick = () => {
 function setTheme(t) {
   document.documentElement.dataset.theme = t;
   document.querySelectorAll(".toggle button").forEach(x => x.classList.toggle("on", x.dataset.t === t));
-  try { localStorage.setItem("rlc-theme", t); } catch (e) {}
+  try { localStorage.setItem("rlc-theme-v2", t); } catch (e) {}
 }
 document.querySelectorAll(".toggle button").forEach(b => b.onclick = () => setTheme(b.dataset.t));
-try { setTheme(localStorage.getItem("rlc-theme") || "dark"); } catch (e) { setTheme("dark"); }
+try { setTheme(localStorage.getItem("rlc-theme-v2") || "dark"); } catch (e) { setTheme("dark"); }
 
 let toastTimer = 0;
 function toast(t) {

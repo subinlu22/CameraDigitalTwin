@@ -1,7 +1,8 @@
 /* 렌더 룩 콘솔 — ProductRenderStudio 패널 시안을 바탕으로, 렌더 뷰가 주인공인 "렌더 전용 유니티 창" 느낌
    색은 :root(밝게) / [data-theme=dark](어둡게)만 바꾸면 전체가 바뀜 */
+@font-face{font-family:"SUIT Variable";src:url(fonts/SUIT-Variable.ttf) format("truetype");font-weight:100 900;font-display:swap}
 :root{
-  --font:"Pretendard Variable",Pretendard,-apple-system,"Segoe UI Variable","Malgun Gothic",sans-serif;
+  --font:"SUIT Variable",SUIT,"Pretendard Variable",Pretendard,-apple-system,"Segoe UI Variable","Malgun Gothic",sans-serif;
   --mono:ui-monospace,"Cascadia Mono",Consolas,monospace;
   --bg:#e6e7ea; --stage:#d7d9de; --stage-edge:rgba(20,23,28,.08);
   --glass:rgba(255,255,255,.62); --glass-strong:rgba(255,255,255,.8); --edge:rgba(255,255,255,.75); --edge-in:rgba(255,255,255,.9);

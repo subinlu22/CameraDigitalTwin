@@ -33,7 +33,7 @@ FRAME_PORT = 5072                         # 유니티 → 콘솔 렌더 뷰 (TCP
 ALIVE_S = 3.0                              # 이 시간 동안 소식이 없으면 "연결 끊김"
 WEB = Path(__file__).resolve().parent / "web"
 TYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8",
-         ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".ico": "image/x-icon"}
+         ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".ico": "image/x-icon", ".ttf": "font/ttf"}
 
 
 class UnityLink:

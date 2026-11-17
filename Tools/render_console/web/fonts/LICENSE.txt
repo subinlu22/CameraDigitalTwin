@@ -1,0 +1,3 @@
+SUIT Variable (fonts/SUIT-Variable.ttf)
+Copyright (c) 2022 Sun (sun.fo)
+SIL Open Font License 1.1 - https://openfontlicense.org
