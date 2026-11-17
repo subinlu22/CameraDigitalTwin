@@ -18,6 +18,7 @@ const MODE_NOTE = {
   keep: "원래 색·텍스처는 두고 금속성·거칠기·결만 바꿔요.",
 };
 
+let webVersion = 0;
 let S = null, sel = null, editAt = 0, lastSeq = -1, showAuto = false, lastMsg = "", wasConn = false;
 const fresh = () => performance.now() - editAt > 800;
 const post = (cmd) => fetch("/api/cmd", { method: "POST", body: JSON.stringify(cmd) }).catch(() => {});
@@ -184,6 +185,7 @@ function sendPart(pick, patch = {}) {
 }
 
 function applyPreset(id) {
+  if (!S || !preset(id)) return;   // 재질 카드만 받음 (그림·글자를 끌어다 놓은 건 무시)
   const st = partState(sel);
   sendPart(true, { preset: id, mode: st.mode === "original" ? "replace" : st.mode });
   const p = S.parts.find(x => x.id === sel), m = preset(id);
@@ -335,6 +337,8 @@ new MutationObserver(() => setTimeout(sendView, 380)).observe(document.body, { a
 async function poll() {
   try {
     const r = await (await fetch("/api/state")).json();
+    if (webVersion && r.version && r.version !== webVersion) return location.reload();   // 화면 파일이 바뀜
+    webVersion = r.version || webVersion;
     $("live").classList.toggle("on", r.connected);
     $("conn").textContent = r.connected ? "유니티 연결됨" : r.state ? "연결 끊김" : "유니티 기다리는 중";
     if (r.connected) startView();

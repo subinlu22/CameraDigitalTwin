@@ -190,6 +190,7 @@ namespace RenderLook
         {
             var part = Parts.Find(p => p.id == s.id);
             if (part == null) { Notify($"부위 '{s.id}'를 못 찾음"); return; }
+            if (s.mode != "original" && !string.IsNullOrEmpty(s.preset) && FindMaterial(s.preset) == null) { Notify($"모르는 재질 '{s.preset}' — 무시함"); return; }
             if (s.mode != "original" && string.IsNullOrEmpty(s.preset) && Materials.Count > 0) { s.preset = Materials[0].id; pick = true; }
             var preset = FindMaterial(s.preset);
             if (pick && preset != null)

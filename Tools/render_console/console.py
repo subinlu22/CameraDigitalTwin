@@ -133,6 +133,10 @@ class UnityLink:
             self.frame_cv.notify_all()
 
 
+def web_version() -> int:
+    return int(max((f.stat().st_mtime for f in WEB.iterdir() if f.is_file()), default=0))
+
+
 link: UnityLink | None = None
 server: ThreadingHTTPServer | None = None
 
@@ -154,7 +158,8 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         path = self.path.split("?")[0]
         if path == "/api/state":
-            return self._json(link.snapshot())
+            # web 폴더 파일이 바뀌면 version이 바뀜 → 화면이 알아서 새로고침 (창을 다시 열 필요 없음)
+            return self._json(dict(link.snapshot(), version=web_version()))
         if path == "/stream":
             return self._stream()
         if path.startswith("/assets/"):
