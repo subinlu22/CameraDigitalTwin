@@ -60,3 +60,7 @@ __pycache__/
 
 # ===== 라이트맵 (용량 큼, 다른 PC에선 Lighting 창에서 Generate 한 번) =====
 /Assets/Scenes/SampleScene/Lightmap-*
+
+# ===== 라이선스 확인 전 글꼴 (이 PC에만, 없으면 SUIT로 대신) =====
+/Assets/Resources/Fonts/REATIC-*
+/Assets/Resources/Fonts/HadaCondensed-*
