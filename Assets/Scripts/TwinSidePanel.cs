@@ -124,12 +124,12 @@ public partial class TwinSidePanel : MonoBehaviour   // 로봇 [자세] 탭은 T
     {
         viewWidth = pixelWidth;
         viewHeight = pixelHeight;
-        narrow = false;   // 패널을 한쪽(왼쪽)에 나란히 → 좁은 화면에서도 둘 다 보임 (예전 탭 전환은 안 씀)
+        narrow = false;   // 패널을 한쪽(오른쪽)에 나란히 → 좁은 화면에서도 둘 다 보임 (예전 탭 전환은 안 씀)
         ShowPanels();
     }
 
-    // 배치: 전부 왼쪽에 모음 (로봇은 화면 가운데~오른쪽이라 안 가림)
-    //   [장비 정보] [장비 현황 — 접으면 작은 막대만] , 비상 정지 = 둘째 칸 맨 아래에 늘 보임, 위 = 상태 바
+    // 배치: 전부 오른쪽에 모음 (데모 카메라가 오른쪽을 비워 둠 → 로봇·벨트 안 가림)
+    //   [장비 현황 — 접으면 작은 막대만] [장비 정보] , 비상 정지 = 장비 현황 칸 맨 아래에 늘 보임, 위 = 상태 바
     const float StatusH = 34f, StopH = 52f, CollapsedH = 40f;
     bool overviewOpen = true;
 
@@ -138,28 +138,28 @@ public partial class TwinSidePanel : MonoBehaviour   // 로봇 [자세] 탭은 T
         detail.Root.gameObject.SetActive(detailOpen);
         tabs.gameObject.SetActive(false);
         float top = Gutter + StatusH + Gap;
-        float x2 = Gutter + detailWidth + Gap;   // 둘째 칸 왼쪽
-        DockLeft(detail.Root, Gutter, detailWidth, top, Gutter);
+        float x2 = Gutter + detailWidth + Gap;   // 둘째 칸 (오른쪽 끝에서 떨어진 거리)
+        DockRight(detail.Root, Gutter, detailWidth, top, Gutter);
         overview.Root.gameObject.SetActive(overviewOpen);
         overviewPill.gameObject.SetActive(!overviewOpen);
-        DockLeft(overview.Root, x2, overviewWidth, top, Gutter + StopH + Gap);
-        Place(overviewPill, x2, top, overviewWidth, CollapsedH);
+        DockRight(overview.Root, x2, overviewWidth, top, Gutter + StopH + Gap);
+        PlaceRight(overviewPill, x2, top, overviewWidth, CollapsedH);
         var bar = statusBar.Root;
         bar.anchorMin = new Vector2(0, 1); bar.anchorMax = Vector2.one; bar.pivot = new Vector2(.5f, 1);
         bar.offsetMin = new Vector2(Gutter, -Gutter - StatusH);
         bar.offsetMax = new Vector2(-Gutter, -Gutter);
-        footer.anchorMin = footer.anchorMax = footer.pivot = Vector2.zero;
-        footer.anchoredPosition = new Vector2(x2, Gutter);
+        footer.anchorMin = footer.anchorMax = footer.pivot = Vector2.right;
+        footer.anchoredPosition = new Vector2(-x2, Gutter);
         footer.sizeDelta = new Vector2(overviewWidth, StopH);
     }
 
-    // 화면 왼쪽에서 x만큼 떨어진 곳에, 위아래로 늘어나는 칸
-    void DockLeft(RectTransform panel, float x, float w, float top, float bottom)
+    // 화면 오른쪽 끝에서 right만큼 떨어진 곳에, 위아래로 늘어나는 칸
+    void DockRight(RectTransform panel, float right, float w, float top, float bottom)
     {
-        panel.anchorMin = Vector2.zero;
-        panel.anchorMax = Vector2.up;
-        panel.offsetMin = new Vector2(x, bottom);
-        panel.offsetMax = new Vector2(x + w, -top);
+        panel.anchorMin = Vector2.right;
+        panel.anchorMax = Vector2.one;
+        panel.offsetMin = new Vector2(-right - w, bottom);
+        panel.offsetMax = new Vector2(-right, -top);
     }
 
     void SetOverview(bool open) { overviewOpen = open; ShowPanels(); }
