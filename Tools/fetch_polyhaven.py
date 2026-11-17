@@ -10,6 +10,7 @@ import os
 import urllib.request
 
 ROOT = os.path.join(os.path.dirname(__file__), "..", "Assets", "ThirdParty", "PolyHaven")
+RENDER_HDRI = os.path.join(os.path.dirname(__file__), "..", "Assets", "StreamingAssets", "RenderTool", "hdri")
 UA = {"User-Agent": "so101-sim/1.0"}  # User-Agent 없으면 403
 
 HDRI = [("empty_warehouse_01", "1k"), ("meadow_2", "2k")]  # meadow_2 = 공장 창밖 자연 풍경
@@ -53,6 +54,8 @@ def main():
         total += save(files["fbx"]["1k"]["fbx"]["url"], folder)
         for m in MAPS:  # 모델 텍스처도 jpg로 (exr보다 작음)
             total += save(files[m]["1k"]["jpg"]["url"], folder)
+    # 렌더툴 룩 프리셋용 스튜디오 HDRI (빌드에서도 읽게 StreamingAssets에 둠, F6 룩 창이 씀)
+    total += save(api("photo_studio_loft_hall")["hdri"]["2k"]["hdr"]["url"], RENDER_HDRI)
     print("받은 용량", round(total / 1e6, 1), "MB")
 
 

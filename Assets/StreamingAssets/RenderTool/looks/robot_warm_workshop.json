@@ -1,0 +1,26 @@
+{
+  "id": "robot_warm_workshop",
+  "displayName": "따뜻한 작업장",
+  "order": 20,
+  "referenceSize": 0.46,
+  "sceneLightScale": 0.8,
+  "note": "로봇팔 장면용. 따뜻한 키 조명(데모 카메라 기준 앞 왼쪽 위) + 차가운 림(뒤) + 스튜디오 HDRI 반사. 대비·채도 조금 올림",
+  "environment": { "hdri": "hdri/photo_studio_loft_hall_2k.hdr", "hdriRotation": 40, "ambientIntensity": 0.9, "reflectionIntensity": 1 },
+  "lights": [
+    { "name": "키 (따뜻한 앞 왼쪽 위)", "type": "spot", "color": [1, 0.86, 0.68], "intensity": 1.4, "position": [-0.15, 0.75, -0.8], "aimAtCenter": true, "range": 4, "spotAngle": 70, "shadows": true },
+    { "name": "림 (차가운 뒤 위)", "type": "spot", "color": [0.8, 0.9, 1], "intensity": 1.1, "position": [-0.45, 0.6, 0.65], "aimAtCenter": true, "range": 4, "spotAngle": 60, "shadows": false }
+  ],
+  "softboxes": [
+    { "name": "소프트박스 키", "position": [-0.15, 0.75, -0.8], "size": [0.6, 0.6], "emission": [3, 2.6, 2.1] },
+    { "name": "소프트박스 위 (가로 띠)", "position": [0, 0.8, 0], "size": [1, 0.3], "emission": [2.4, 2.3, 2.2] }
+  ],
+  "reflectionProbe": { "enabled": true, "size": [2.4, 1.6, 2.4], "intensity": 1, "resolution": 256 },
+  "post": {
+    "ambientOcclusion": { "enabled": true, "intensity": 0.9, "thickness": 1.2, "color": [0.1, 0.08, 0.06] },
+    "colorGrading": { "tonemapper": "aces", "postExposure": 0.25, "contrast": 10, "saturation": 10 },
+    "bloom": { "enabled": true, "threshold": 1.1, "intensity": 0.25, "softKnee": 0.5 },
+    "vignette": { "enabled": true, "intensity": 0.22, "smoothness": 0.45 },
+    "grain": false
+  },
+  "camera": { "focalLength": 50, "aperture": 32, "angles": [ { "name": "front", "direction": [0, 0.3, 1], "distance": 1.2 } ] }
+}

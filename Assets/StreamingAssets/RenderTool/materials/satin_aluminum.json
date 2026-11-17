@@ -1,0 +1,42 @@
+{
+  "id": "satin_aluminum",
+  "displayName": "새틴 알루미늄",
+  "category": "housing",
+  "note": "헤드 커버·블록·하우징. 튜브보다 살짝 밝은 무광",
+  "recipe": "SatinAluminum",
+  "mapping": "uv",
+  "base": {
+    "color": [
+      0.85,
+      0.85,
+      0.85
+    ],
+    "metallic": 1,
+    "roughness": 0.4,
+    "normalMap": "textures/detail/detail_grain.png",
+    "normalStrength": 0.12,
+    "roughnessVariationTiles": 1,
+    "textureScale": 1
+  },
+  "ranges": {
+    "metallic": [
+      0.9,
+      1
+    ],
+    "roughness": [
+      0.28,
+      0.55
+    ],
+    "normalStrength": [
+      0,
+      0.3
+    ]
+  },
+  "matchNames": [
+    "head",
+    "cover",
+    "housing",
+    "block"
+  ],
+  "thumbnail": "thumbnails/satin_aluminum.png"
+}

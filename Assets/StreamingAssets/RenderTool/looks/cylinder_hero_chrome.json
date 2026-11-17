@@ -1,0 +1,246 @@
+{
+  "id": "cylinder_hero_chrome",
+  "displayName": "진한 크롬 스튜디오",
+  "order": 10,
+  "referenceSize": 0.275,
+  "note": "하이키 흰 배경 + 휜 배경지, 소프트박스 키(왼쪽 위)·림(뒤)·필, 스튜디오 HDRI 반사. PFPartsRender 170009f 버전. 기준 크기 0.275m = 이 룩을 맞출 때 쓴 실린더(PF_DOUBLE_ACT_CYL)의 실제 가장 긴 변",
+  "environment": {
+    "hdri": "hdri/photo_studio_loft_hall_2k.hdr",
+    "hdriRotation": 0,
+    "ambientIntensity": 1,
+    "reflectionIntensity": 1,
+    "showHdriAsBackground": false,
+    "backgroundColor": [
+      0.9,
+      0.905,
+      0.915
+    ]
+  },
+  "lights": [
+    {
+      "name": "키 소프트박스 (왼쪽 위)",
+      "type": "spot",
+      "color": [
+        1,
+        0.985,
+        0.965
+      ],
+      "intensity": 1,
+      "position": [
+        -0.55,
+        0.65,
+        0.45
+      ],
+      "aimAtCenter": true,
+      "euler": [
+        0,
+        0,
+        0
+      ],
+      "range": 6,
+      "spotAngle": 160,
+      "shadows": true
+    },
+    {
+      "name": "림 (뒤 위)",
+      "type": "spot",
+      "color": [
+        0.93,
+        0.96,
+        1
+      ],
+      "intensity": 1.2,
+      "position": [
+        0.25,
+        0.5,
+        -0.6
+      ],
+      "aimAtCenter": true,
+      "euler": [
+        0,
+        0,
+        0
+      ],
+      "range": 4,
+      "spotAngle": 70,
+      "shadows": false
+    },
+    {
+      "name": "필 (오른쪽 앞)",
+      "type": "point",
+      "color": [
+        0.9,
+        0.94,
+        1
+      ],
+      "intensity": 0.25,
+      "position": [
+        0.7,
+        0.2,
+        0.6
+      ],
+      "aimAtCenter": false,
+      "euler": [
+        0,
+        0,
+        0
+      ],
+      "range": 4,
+      "spotAngle": 40,
+      "shadows": false
+    }
+  ],
+  "softboxes": [
+    {
+      "name": "소프트박스 키",
+      "position": [
+        -0.6,
+        0.72,
+        0.5
+      ],
+      "size": [
+        0.7,
+        0.7
+      ],
+      "emission": [
+        3,
+        2.97,
+        2.94
+      ]
+    },
+    {
+      "name": "소프트박스 림 (가로 띠)",
+      "position": [
+        0.25,
+        0.55,
+        -0.6
+      ],
+      "size": [
+        0.9,
+        0.22
+      ],
+      "emission": [
+        3,
+        2.97,
+        2.94
+      ]
+    },
+    {
+      "name": "소프트박스 위 (오버헤드)",
+      "position": [
+        0.05,
+        0.75,
+        0.05
+      ],
+      "size": [
+        1.1,
+        0.45
+      ],
+      "emission": [
+        3,
+        2.97,
+        2.94
+      ]
+    }
+  ],
+  "backdrop": {
+    "enabled": true,
+    "color": [
+      0.86,
+      0.865,
+      0.875
+    ],
+    "gloss": 0.15,
+    "normalMap": "textures/detail/detail_grain.png",
+    "normalStrength": 0.25,
+    "grainSize": 0.06,
+    "width": 3,
+    "front": 1.2,
+    "back": -0.7,
+    "radius": 0.4,
+    "height": 1.1
+  },
+  "reflectionProbe": {
+    "enabled": true,
+    "size": [
+      2.4,
+      1.6,
+      2.4
+    ],
+    "intensity": 1,
+    "resolution": 512
+  },
+  "contactShadow": 0.35,
+  "shadowDistance": 2,
+  "camera": {
+    "focalLength": 85,
+    "aperture": 32,
+    "angles": [
+      {
+        "name": "hero",
+        "direction": [
+          -0.5,
+          0.3,
+          1
+        ],
+        "distance": 0.82
+      },
+      {
+        "name": "low",
+        "direction": [
+          0.25,
+          0.12,
+          1
+        ],
+        "distance": 0.9
+      },
+      {
+        "name": "rod",
+        "direction": [
+          0.9,
+          0.45,
+          0.8
+        ],
+        "distance": 0.42
+      }
+    ]
+  },
+  "post": {
+    "ambientOcclusion": {
+      "enabled": true,
+      "intensity": 1.1,
+      "thickness": 1.5,
+      "color": [
+        0.12,
+        0.12,
+        0.14
+      ]
+    },
+    "colorGrading": {
+      "tonemapper": "aces",
+      "postExposure": 0.35,
+      "contrast": 4,
+      "saturation": 0
+    },
+    "bloom": {
+      "enabled": true,
+      "threshold": 1.2,
+      "intensity": 0.15,
+      "softKnee": 0.5
+    },
+    "vignette": {
+      "enabled": true,
+      "intensity": 0.08,
+      "smoothness": 0.45
+    },
+    "depthOfField": false,
+    "grain": false,
+    "antialiasing": "smaa"
+  },
+  "output": {
+    "width": 1920,
+    "height": 1080,
+    "transparentBackground": false
+  },
+  "thumbnail": null
+}

@@ -1,0 +1,26 @@
+{
+  "id": "robot_cool_inspection",
+  "displayName": "차가운 검사실",
+  "order": 30,
+  "referenceSize": 0.46,
+  "sceneLightScale": 0.65,
+  "note": "로봇팔 장면용. 위에서 내리는 하얀 빛 + 푸른 필, 넓은 천장 소프트박스 반사. 채도 낮추고 깔끔하게",
+  "environment": { "hdri": "hdri/photo_studio_loft_hall_2k.hdr", "hdriRotation": 180, "ambientIntensity": 1.1, "reflectionIntensity": 1.1 },
+  "lights": [
+    { "name": "탑 (하얀 위)", "type": "spot", "color": [0.94, 0.97, 1], "intensity": 1.6, "position": [0.05, 0.95, 0.1], "aimAtCenter": true, "range": 4, "spotAngle": 80, "shadows": true },
+    { "name": "필 (푸른 오른쪽 앞)", "type": "point", "color": [0.7, 0.82, 1], "intensity": 0.5, "position": [0.8, 0.25, -0.15], "aimAtCenter": false, "range": 3, "shadows": false }
+  ],
+  "softboxes": [
+    { "name": "천장 소프트박스", "position": [0, 0.9, 0], "size": [1.4, 0.6], "emission": [2.6, 2.8, 3] },
+    { "name": "옆 띠 (오른쪽)", "position": [0.6, 0.4, -0.5], "size": [0.2, 0.9], "emission": [2, 2.2, 2.5] }
+  ],
+  "reflectionProbe": { "enabled": true, "size": [2.4, 1.6, 2.4], "intensity": 1, "resolution": 256 },
+  "post": {
+    "ambientOcclusion": { "enabled": true, "intensity": 1, "thickness": 1.2, "color": [0.06, 0.07, 0.09] },
+    "colorGrading": { "tonemapper": "aces", "postExposure": 0.15, "contrast": 14, "saturation": -18 },
+    "bloom": { "enabled": true, "threshold": 1.2, "intensity": 0.15, "softKnee": 0.5 },
+    "vignette": { "enabled": true, "intensity": 0.12, "smoothness": 0.4 },
+    "grain": false
+  },
+  "camera": { "focalLength": 50, "aperture": 32, "angles": [ { "name": "front", "direction": [0, 0.3, 1], "distance": 1.2 } ] }
+}

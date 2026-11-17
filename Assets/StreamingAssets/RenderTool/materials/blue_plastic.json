@@ -1,0 +1,41 @@
+{
+  "id": "blue_plastic",
+  "displayName": "파란 플라스틱",
+  "category": "plastic",
+  "note": "원터치 피팅 링·색 플라스틱",
+  "recipe": "BluePlastic",
+  "mapping": "uv",
+  "base": {
+    "color": [
+      0.18,
+      0.46,
+      0.68
+    ],
+    "metallic": 0,
+    "roughness": 0.32,
+    "normalMap": "textures/detail/detail_grain.png",
+    "normalStrength": 0.15,
+    "roughnessVariationTiles": 0,
+    "textureScale": 1
+  },
+  "ranges": {
+    "metallic": [
+      0,
+      0.1
+    ],
+    "roughness": [
+      0.2,
+      0.5
+    ],
+    "normalStrength": [
+      0,
+      0.3
+    ]
+  },
+  "matchNames": [
+    "ring",
+    "collar",
+    "release"
+  ],
+  "thumbnail": "thumbnails/blue_plastic.png"
+}

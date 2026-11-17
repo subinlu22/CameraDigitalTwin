@@ -1,0 +1,41 @@
+{
+  "id": "brushed_stainless",
+  "displayName": "브러시드 스테인리스",
+  "category": "metal",
+  "note": "가공 금속면·판금. 헤어라인 결 (UV의 U 방향)",
+  "recipe": "BrushedStainless",
+  "mapping": "uv",
+  "base": {
+    "color": [
+      0.78,
+      0.78,
+      0.77
+    ],
+    "metallic": 1,
+    "roughness": 0.38,
+    "normalMap": "textures/detail/detail_brushed.png",
+    "normalStrength": 0.3,
+    "roughnessVariationTiles": 1,
+    "textureScale": 1
+  },
+  "ranges": {
+    "metallic": [
+      0.9,
+      1
+    ],
+    "roughness": [
+      0.25,
+      0.5
+    ],
+    "normalStrength": [
+      0.1,
+      0.5
+    ]
+  },
+  "matchNames": [
+    "plate",
+    "panel",
+    "sheet"
+  ],
+  "thumbnail": "thumbnails/brushed_stainless.png"
+}

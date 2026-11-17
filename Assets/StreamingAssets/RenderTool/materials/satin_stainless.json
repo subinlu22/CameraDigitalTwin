@@ -1,0 +1,41 @@
+{
+  "id": "satin_stainless",
+  "displayName": "새틴 스테인리스",
+  "category": "rod",
+  "note": "피스톤 로드·샤프트. 거울 크롬이 아니라 부드러운 반사",
+  "recipe": "SatinStainless",
+  "mapping": "uv",
+  "base": {
+    "color": [
+      0.86,
+      0.86,
+      0.86
+    ],
+    "metallic": 1,
+    "roughness": 0.22,
+    "normalMap": "textures/detail/detail_polish.png",
+    "normalStrength": 0.08,
+    "roughnessVariationTiles": 2,
+    "textureScale": 1
+  },
+  "ranges": {
+    "metallic": [
+      0.9,
+      1
+    ],
+    "roughness": [
+      0.1,
+      0.35
+    ],
+    "normalStrength": [
+      0,
+      0.2
+    ]
+  },
+  "matchNames": [
+    "rod",
+    "piston",
+    "shaft"
+  ],
+  "thumbnail": "thumbnails/satin_stainless.png"
+}

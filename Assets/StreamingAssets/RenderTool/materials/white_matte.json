@@ -1,0 +1,41 @@
+{
+  "id": "white_matte",
+  "displayName": "흰 무광",
+  "category": "bracket",
+  "note": "흰 브래킷·케이스. 날아가지 않는 중립 흰색",
+  "recipe": "WhiteMatte",
+  "mapping": "uv",
+  "base": {
+    "color": [
+      0.78,
+      0.78,
+      0.77
+    ],
+    "metallic": 0,
+    "roughness": 0.6,
+    "normalMap": "textures/detail/detail_grain.png",
+    "normalStrength": 0.2,
+    "roughnessVariationTiles": 1,
+    "textureScale": 1
+  },
+  "ranges": {
+    "metallic": [
+      0,
+      0.1
+    ],
+    "roughness": [
+      0.45,
+      0.8
+    ],
+    "normalStrength": [
+      0,
+      0.4
+    ]
+  },
+  "matchNames": [
+    "bracket",
+    "mount",
+    "case"
+  ],
+  "thumbnail": "thumbnails/white_matte.png"
+}

@@ -1,0 +1,41 @@
+{
+  "id": "nickel",
+  "displayName": "니켈 도금",
+  "category": "fitting",
+  "note": "피팅 몸체·도금 황동. 살짝 누런 금속",
+  "recipe": "Nickel",
+  "mapping": "uv",
+  "base": {
+    "color": [
+      0.88,
+      0.86,
+      0.82
+    ],
+    "metallic": 1,
+    "roughness": 0.2,
+    "normalMap": "textures/detail/detail_polish.png",
+    "normalStrength": 0.1,
+    "roughnessVariationTiles": 1,
+    "textureScale": 1
+  },
+  "ranges": {
+    "metallic": [
+      0.9,
+      1
+    ],
+    "roughness": [
+      0.1,
+      0.35
+    ],
+    "normalStrength": [
+      0,
+      0.25
+    ]
+  },
+  "matchNames": [
+    "fitting",
+    "connector",
+    "elbow"
+  ],
+  "thumbnail": "thumbnails/nickel.png"
+}

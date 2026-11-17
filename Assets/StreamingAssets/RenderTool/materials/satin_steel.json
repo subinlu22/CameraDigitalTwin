@@ -1,0 +1,42 @@
+{
+  "id": "satin_steel",
+  "displayName": "새틴 강철",
+  "category": "fastener",
+  "note": "너트·볼트·와셔",
+  "recipe": "SatinSteel",
+  "mapping": "uv",
+  "base": {
+    "color": [
+      0.84,
+      0.84,
+      0.85
+    ],
+    "metallic": 1,
+    "roughness": 0.34,
+    "normalMap": "textures/detail/detail_polish.png",
+    "normalStrength": 0.12,
+    "roughnessVariationTiles": 1,
+    "textureScale": 1
+  },
+  "ranges": {
+    "metallic": [
+      0.9,
+      1
+    ],
+    "roughness": [
+      0.22,
+      0.48
+    ],
+    "normalStrength": [
+      0,
+      0.3
+    ]
+  },
+  "matchNames": [
+    "nut",
+    "bolt",
+    "washer",
+    "screw"
+  ],
+  "thumbnail": "thumbnails/satin_steel.png"
+}

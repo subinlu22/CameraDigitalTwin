@@ -52,6 +52,7 @@ __pycache__/
 /Assets/ThirdParty/PolyHaven/**/*.jpg
 /Assets/ThirdParty/PolyHaven/**/*.hdr
 /Assets/ThirdParty/PolyHaven/**/*.fbx
+/Assets/StreamingAssets/RenderTool/hdri/*.hdr
 
 # ===== Unity Factory (에셋 스토어, 재배포 금지) — Tools/import_unity_factory.py로 넣음 =====
 /Assets/ThirdParty/UnityFactory/

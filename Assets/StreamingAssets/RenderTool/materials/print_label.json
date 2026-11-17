@@ -1,0 +1,41 @@
+{
+  "id": "print_label",
+  "displayName": "인쇄 라벨",
+  "category": "label",
+  "note": "라벨·스티커",
+  "recipe": "Print",
+  "mapping": "uv",
+  "base": {
+    "color": [
+      0.72,
+      0.72,
+      0.72
+    ],
+    "metallic": 0,
+    "roughness": 0.4,
+    "normalMap": "textures/detail/detail_grain.png",
+    "normalStrength": 0.06,
+    "roughnessVariationTiles": 0,
+    "textureScale": 1
+  },
+  "ranges": {
+    "metallic": [
+      0,
+      0.1
+    ],
+    "roughness": [
+      0.3,
+      0.6
+    ],
+    "normalStrength": [
+      0,
+      0.15
+    ]
+  },
+  "matchNames": [
+    "label",
+    "sticker",
+    "print"
+  ],
+  "thumbnail": "thumbnails/print_label.png"
+}
