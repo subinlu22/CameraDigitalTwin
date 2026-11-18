@@ -69,23 +69,47 @@ namespace RenderLook
         string PartName(Part p) =>
             core.States.TryGetValue(p.id, out var s) && s.mode != "original" ? (core.FindMaterial(s.preset)?.displayName ?? s.preset) : "원래 재질";
 
-        // ================================================================ 화면 (IMGUI, 왼쪽 아래)
-        static readonly Color Ink = new Color32(0xF5, 0xF4, 0xF3, 255), Muted = new Color32(0xC2, 0xC2, 0xC8, 255);
-        static readonly Color Blue = new Color32(0x78, 0xAD, 0xFC, 255);
-        static readonly Color Fill = new Color(.13f, .12f, .118f, .88f), Card = new Color(.28f, .26f, .25f, .45f);
+        // ================================================================ 화면 (IMGUI, 아래 가운데)
+        // 로봇팔 패널과 같은 디지털 트윈 스타일: 어두운 반투명 유리 + 얇은 테두리 + 청록 포인트 하나, 글꼴 SUIT(없으면 기본)
+        static readonly Color Ink = new Color32(0xF2, 0xF5, 0xF8, 255), Muted = new Color32(0xAA, 0xB5, 0xC1, 255);
+        static readonly Color Blue = new Color32(0x5F, 0xD4, 0xE8, 255);
+        static readonly Color Fill = new Color(.04f, .055f, .075f, .88f);
+        static readonly Color Card = new Color(1, 1, 1, .05f), CardHover = new Color(1, 1, 1, .11f);
+        static readonly Color Edge = new Color(1, 1, 1, .16f), ActiveFill = new Color(.37f, .83f, .91f, .16f), ActiveEdge = new Color(.37f, .83f, .91f, .6f);
+        const float OpenW = 196, OpenH = 36;   // 닫혔을 때 버튼 크기 (1080p 기준)
+
+        Font Load(string name) => Resources.Load<Font>("Fonts/" + name);
 
         void Styles()
         {
             if (title != null) return;
-            title = new GUIStyle(GUI.skin.label) { fontSize = 16, fontStyle = FontStyle.Bold, normal = { textColor = Ink } };
-            label = new GUIStyle(GUI.skin.label) { fontSize = 13, normal = { textColor = Ink }, alignment = TextAnchor.MiddleLeft, clipping = TextClipping.Clip };
-            small = new GUIStyle(GUI.skin.label) { fontSize = 11, normal = { textColor = Muted }, wordWrap = true };
-            button = new GUIStyle(GUI.skin.button) { fontSize = 13 };
-            nameBox = new GUIStyle(GUI.skin.label) { fontSize = 13, alignment = TextAnchor.MiddleCenter, normal = { textColor = Ink }, clipping = TextClipping.Clip };
+            Font semi = Load("SUIT-SemiBold"), bold = Load("SUIT-Bold") ?? semi, medium = Load("SUIT-Medium") ?? semi;
+            title = new GUIStyle(GUI.skin.label) { font = bold, fontSize = 16, normal = { textColor = Ink } };
+            label = new GUIStyle(GUI.skin.label) { font = semi, fontSize = 13, normal = { textColor = Ink }, alignment = TextAnchor.MiddleLeft, clipping = TextClipping.Clip };
+            small = new GUIStyle(GUI.skin.label) { font = medium, fontSize = 12, normal = { textColor = Muted }, wordWrap = true };
+            button = new GUIStyle(GUI.skin.label) { font = semi, fontSize = 14, alignment = TextAnchor.MiddleCenter, normal = { textColor = Ink }, clipping = TextClipping.Clip };
+            nameBox = new GUIStyle(button) { fontSize = 13 };
             dim = new GUIStyle(nameBox) { normal = { textColor = Muted } };
         }
 
         static void Box(Rect r, Color c) { var old = GUI.color; GUI.color = c; GUI.DrawTexture(r, Texture2D.whiteTexture); GUI.color = old; }
+
+        // 칸 + 1px 테두리
+        static void Frame(Rect r, Color fill, Color edge)
+        {
+            Box(r, fill);
+            Box(new Rect(r.x, r.y, r.width, 1), edge); Box(new Rect(r.x, r.yMax - 1, r.width, 1), edge);
+            Box(new Rect(r.x, r.y, 1, r.height), edge); Box(new Rect(r.xMax - 1, r.y, 1, r.height), edge);
+        }
+
+        // 버튼: 칸을 그리고 위에 안 보이는 버튼. 마우스 올리면 밝게
+        bool Btn(Rect r, string text, bool active = false, GUIStyle style = null)
+        {
+            bool hover = r.Contains(Event.current.mousePosition);
+            Frame(r, active ? ActiveFill : hover ? CardHover : Card, active ? ActiveEdge : Edge);
+            GUI.Label(r, text, style ?? button);
+            return GUI.Button(r, GUIContent.none, GUIStyle.none);
+        }
 
         void OnGUI()
         {
@@ -97,8 +121,16 @@ namespace RenderLook
 
             if (!open)
             {
-                // 화면 아래 가운데 (양옆 패널과 안 겹치게)
-            if (GUI.Button(new Rect(Screen.width / k / 2 - 75, h - 44, 150, 32), "룩 프리셋  (F6)", button)) open = true;
+                // 화면 아래 가운데 (양옆 패널과 안 겹치게): 유리 칸 + 왼쪽 청록 줄 + 오른쪽 F6 키 표시
+                var r = new Rect(Screen.width / k / 2 - OpenW / 2, h - OpenH - 12, OpenW, OpenH);
+                bool hover = r.Contains(Event.current.mousePosition);
+                Frame(r, hover ? new Color(.08f, .11f, .14f, .92f) : Fill, hover ? ActiveEdge : Edge);
+                Box(new Rect(r.x, r.y, 2, r.height), Blue);
+                GUI.Label(new Rect(r.x + 16, r.y, r.width - 70, r.height), "룩 프리셋", label);
+                var key = new Rect(r.xMax - 50, r.y + 8, 38, r.height - 16);
+                Frame(key, Color.clear, new Color(1, 1, 1, .45f));
+                GUI.Label(key, "F6", dim);
+                if (GUI.Button(r, GUIContent.none, GUIStyle.none)) open = true;
                 return;
             }
 
@@ -110,7 +142,8 @@ namespace RenderLook
             float noteH = Mathf.Max(16, small.CalcHeight(new GUIContent(note), inner));
             float H = 12 + 30 + 20 + Row + 4 + noteH + 10 + 22 + 34 + rows.Count * (Row + 6) + 4 + 34 + 22;
             var box = new Rect(Screen.width / k / 2 - W / 2, h - H - 12, W, H);
-            Box(box, Fill);
+            Frame(box, Fill, Edge);
+            Box(new Rect(box.x, box.y, box.width, 2), Blue);   // 위 청록 줄
             float x = box.x + 14, y = box.y + 12;
 
             GUI.Label(new Rect(x, y, inner, 22), "룩 프리셋", title);
@@ -136,25 +169,24 @@ namespace RenderLook
             }
 
             y += 4;
-            if (GUI.Button(new Rect(x, y, inner * 0.62f, 30), "모두 원래대로", button)) core.ResetAll();
-            if (GUI.Button(new Rect(x + inner * 0.62f + 8, y, inner * 0.38f - 8, 30), "닫기 (F6)", button)) open = false;
+            if (Btn(new Rect(x, y, inner * 0.62f, 30), "모두 원래대로")) core.ResetAll();
+            if (Btn(new Rect(x + inner * 0.62f + 8, y, inner * 0.38f - 8, 30), "닫기  F6")) open = false;
             y += 34;
             GUI.Label(new Rect(x, y, inner, 18), Time.unscaledTime < statusUntil ? lastMsg : "원본 재질 파일은 안 바뀌어요 · 끄면 그대로 돌아와요", small);
         }
 
         bool Segment(Rect r, string text, bool on)
         {
-            Box(r, on ? new Color(Blue.r, Blue.g, Blue.b, .35f) : Card);
-            return GUI.Button(r, text, on ? nameBox : dim);
+            return Btn(r, text, on, on ? nameBox : dim);
         }
 
         bool Stepper(Rect r, string text, bool active, out int dir)
         {
             dir = 0;
-            Box(new Rect(r.x + 34, r.y, r.width - 68, r.height), active ? new Color(Blue.r, Blue.g, Blue.b, .28f) : Card);
-            if (GUI.Button(new Rect(r.x, r.y, 30, r.height), "◀", button)) dir = -1;
-            GUI.Label(new Rect(r.x + 36, r.y, r.width - 72, r.height), text, nameBox);
-            if (GUI.Button(new Rect(r.xMax - 30, r.y, 30, r.height), "▶", button)) dir = 1;
+            Frame(new Rect(r.x + 34, r.y, r.width - 68, r.height), active ? ActiveFill : Card, active ? ActiveEdge : Edge);
+            if (Btn(new Rect(r.x, r.y, 30, r.height), "◀")) dir = -1;
+            GUI.Label(new Rect(r.x + 36, r.y, r.width - 72, r.height), text, active ? nameBox : dim);
+            if (Btn(new Rect(r.xMax - 30, r.y, 30, r.height), "▶")) dir = 1;
             return dir != 0;
         }
     }
