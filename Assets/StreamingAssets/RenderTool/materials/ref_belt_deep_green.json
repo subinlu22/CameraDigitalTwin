@@ -1,0 +1,26 @@
+{
+  "id": "ref_belt_deep_green",
+  "displayName": "벨트 초록 (깊게)",
+  "category": "reference",
+  "note": "레퍼런스 차분한 셀 · 벨트 천",
+  "recipe": "",
+  "mapping": "uv",
+  "base": {
+    "color": [
+      0.02,
+      0.42,
+      0.18
+    ],
+    "metallic": 0,
+    "roughness": 0.65,
+    "normalMap": "textures/detail/detail_grain.png",
+    "normalStrength": 0.15,
+    "textureScale": 1
+  },
+  "ranges": {
+    "metallic": [],
+    "roughness": [],
+    "normalStrength": []
+  },
+  "matchNames": []
+}

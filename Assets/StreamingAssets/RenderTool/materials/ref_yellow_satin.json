@@ -8,11 +8,11 @@
   "base": {
     "color": [
       1.0,
-      0.74,
-      0.04
+      0.68,
+      0.0
     ],
     "metallic": 0,
-    "roughness": 0.38,
+    "roughness": 0.42,
     "normalMap": "textures/detail/detail_grain.png",
     "normalStrength": 0.05,
     "textureScale": 1

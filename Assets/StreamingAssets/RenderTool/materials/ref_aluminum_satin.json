@@ -1,0 +1,26 @@
+{
+  "id": "ref_aluminum_satin",
+  "displayName": "새틴 알루미늄 (중간 은색)",
+  "category": "reference",
+  "note": "레퍼런스 차분한 셀 · 벨트 프레임. 너무 밝지 않은 은색",
+  "recipe": "",
+  "mapping": "uv",
+  "base": {
+    "color": [
+      0.72,
+      0.74,
+      0.77
+    ],
+    "metallic": 0.85,
+    "roughness": 0.38,
+    "normalMap": "textures/detail/detail_brushed.png",
+    "normalStrength": 0.25,
+    "textureScale": 1.5
+  },
+  "ranges": {
+    "metallic": [],
+    "roughness": [],
+    "normalStrength": []
+  },
+  "matchNames": []
+}

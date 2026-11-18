@@ -49,6 +49,13 @@
       <div class="label"><span>레퍼런스 색 맞추기</span><span id="refHint">룩을 먼저 고르기</span></div>
       <label class="refbox" id="refBox"><input type="file" id="refFile" accept="image/*" hidden><img id="refImg" class="hidden" alt=""><span id="refText">마음에 드는 사진을 끌어 놓거나 눌러서 고르기</span></label>
       <div class="refrow"><button class="go" id="refGo">이 사진 색감으로 맞추기</button><button class="ghost" id="refUndo">되돌리기</button></div>
+      <div id="pickWrap" class="hidden">
+        <div class="label" style="margin-top:14px"><span>부위 대조</span><span>부위 고르고 → 사진에서 그 부위 누르기</span></div>
+        <div class="pickparts" id="pickParts"></div>
+        <canvas id="pickCanvas" class="pickcanvas"></canvas>
+        <button class="go refgo" id="matchGo">부위 대조 맞추기 (맞을 때까지)</button>
+        <div id="matchTable" class="mtable"></div>
+      </div>
     </div>
     <div class="sec" id="lookSec">
       <div class="label"><span>조명 세부</span><span id="lookHint">룩을 고르면 조절할 수 있어요</span></div>

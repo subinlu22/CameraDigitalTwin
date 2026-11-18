@@ -10,6 +10,7 @@
   5) 유니티가 TCP 5072로 보내는 렌더 뷰(JPG)를 받아 화면 가운데에 영상(MJPEG)으로 보여 준다
   6) [실사 라이브러리] Poly Haven HDRI · ambientCG 재질을 받아 프리셋으로 만듦 (library.py)
   7) [레퍼런스 색 맞추기] 사진 한 장의 색감에 렌더 뷰를 맞춤 (reference.py, Pillow 필요)
+  8) [부위 대조] 레퍼런스에서 찍은 부위 색과 유니티 부위 색(마스크로 잼)을 비교해 맞을 때까지 재질 색을 고침 (match.py)
 유니티 쪽은 Assets/RenderLookConsole (장면에 안 넣어도 플레이하면 자동으로 생김). 메시지 형식: docs/render_look_messages.md
 1)~5)는 파이썬 표준 라이브러리만 씀. 6)의 금속·거칠기 합치기와 7)은 Pillow 필요 (pip install pillow)
 """
@@ -28,6 +29,7 @@ import urllib.request
 import webbrowser
 
 import library
+import match
 import reference
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -58,7 +60,8 @@ class UnityLink:
         self.rx.settimeout(0.5)
         self.running = True
         self.frame, self.frame_id = None, 0
-        self.job, self.job_busy, self.last_fetched = "", False, ""   # 라이브러리 받기·색 맞추기 진행 상황 (화면 아래 알림)
+        self.job, self.job_busy, self.last_fetched = "", False, ""
+        self.match = []   # 레퍼런스 부위 대조 결과표   # 라이브러리 받기·색 맞추기 진행 상황 (화면 아래 알림)
         self.frame_cv = threading.Condition()
         self.fsrv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.fsrv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -133,7 +136,7 @@ class UnityLink:
     def snapshot(self) -> dict:
         with self.lock:
             return {"connected": self.connected(), "state": self.state, "job": self.job, "busy": self.job_busy,
-                    "fetched": self.last_fetched}
+                    "fetched": self.last_fetched, "match": self.match}
 
     def close(self):
         self.running = False
@@ -241,6 +244,8 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/api/cmd":
             link.send(msg)
             return self._json({"ok": True})
+        if self.path == "/api/match":   # {"samples": {부위 id: [r,g,b]}}
+            return self._job(lambda report: match.fit(link, msg.get("samples") or {}, report, lambda t: setattr(link, "match", t)))
         if self.path == "/api/lib/get":
             return self._job(lambda report: fetch(msg, report))
         if self.path == "/api/shutdown":

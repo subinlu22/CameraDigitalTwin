@@ -43,6 +43,8 @@ namespace RenderLook
         public MatInfo[] materials;
         public PartInfo[] parts;
         public PartState[] states;
+        public PartMeasure[] measures;   // 레퍼런스 대조: 부위마다 화면 평균 색
+        public int measureSeq;
     }
 
     public class RenderLookLink : MonoBehaviour
@@ -117,6 +119,7 @@ namespace RenderLook
                 case "view": GetComponent<RenderLookStream>()?.SetView(c.w, c.h, c.zoom, c.cx, c.cy); break;
                 case "save_material": core.SaveMaterial(c.id, c.name); break;
                 case "save_look": core.SaveLook(c.name); break;
+                case "measure": core.MeasureParts(); break;
             }
         }
 
@@ -143,6 +146,7 @@ namespace RenderLook
                 scene = SceneManager.GetActiveScene().name, root = RenderLookFiles.Root, msg = core.Message, look = core.LookId, seq = ++seq,
                 lookParams = core.Params, lookDefaults = core.DefaultParams, looks = looks.ToArray(), materials = mats.ToArray(), parts = parts.ToArray(),
                 states = new List<PartState>(core.States.Values).ToArray(),
+                measures = core.Measures.ToArray(), measureSeq = core.MeasureSeq,
             };
             var bytes = Encoding.UTF8.GetBytes(JsonUtility.ToJson(msg));
             try { tx.Send(bytes, bytes.Length, console); } catch (SocketException) { }   // 콘솔이 꺼져 있어도 괜찮음

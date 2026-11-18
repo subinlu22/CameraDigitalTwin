@@ -3,7 +3,7 @@
   "displayName": "실사 검사 셀",
   "order": 5,
   "referenceSize": 0.46,
-  "sceneLightScale": 0.7,
+  "sceneLightScale": 1,
   "note": "레시피: 레퍼런스 사진(밝은 청록 공장, 배경 흐림) 기준. 조명·후처리·배경 흐림 + 부위 재질 4곳을 한 번에",
   "environment": {
     "hdri": "hdri/photo_studio_loft_hall_2k.hdr",
@@ -13,22 +13,22 @@
   },
   "lights": [
     {
-      "name": "키 (왼쪽 위 부드럽게)",
+      "name": "키 (위 가운데 부드럽게)",
       "type": "spot",
       "color": [
         1,
         0.98,
         0.95
       ],
-      "intensity": 1.0,
+      "intensity": 1.2,
       "position": [
-        -0.45,
-        0.85,
-        0.55
+        0.05,
+        1.0,
+        0.45
       ],
       "aimAtCenter": true,
       "range": 4,
-      "spotAngle": 75,
+      "spotAngle": 90,
       "shadows": true
     },
     {
@@ -86,23 +86,6 @@
         1.55,
         1.6
       ]
-    },
-    {
-      "name": "왼쪽 띠",
-      "position": [
-        -0.8,
-        0.45,
-        0.2
-      ],
-      "size": [
-        0.25,
-        1
-      ],
-      "emission": [
-        2.2,
-        2.4,
-        2.6
-      ]
     }
   ],
   "reflectionProbe": {
@@ -128,7 +111,7 @@
     },
     "colorGrading": {
       "tonemapper": "aces",
-      "postExposure": 0,
+      "postExposure": 0.3,
       "contrast": 18,
       "saturation": 16,
       "temperature": -10,
@@ -166,7 +149,7 @@
     "depthOfField": true,
     "grain": false,
     "antialiasing": "smaa",
-    "autoExposure": true,
+    "autoExposure": false,
     "exposureKey": 0.65
   },
   "camera": {
@@ -202,5 +185,9 @@
       "part": "belt_cloth",
       "material": "ref_belt_green"
     }
+  ],
+  "nearLightScale": 0,
+  "hideObjects": [
+    "TopReflection"
   ]
 }

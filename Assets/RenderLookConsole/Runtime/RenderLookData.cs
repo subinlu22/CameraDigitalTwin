@@ -61,7 +61,10 @@ namespace RenderLook
         public string note;
         public int order = 10;
         public float referenceSize = 0.3f;
-        public float sceneLightScale = 1f;     // 콘솔 추가: 장면에 원래 있던 조명 밝기 배율
+        public bool cleanSlate = true;         // 빈 무대에서 시작: 장면의 원래 조명·구운 조명·후처리·반사 프로브·반사판을 끄고 이 룩만으로 다시 조명
+        public float sceneLightScale = 1f;     // 콘솔 추가: 장면에 원래 있던 조명 밝기 배율 (빈 무대면 0에서 시작)
+        public float nearLightScale = -1f;     // 초점 근처(NearRadius m 안) 원래 조명 배율 (−1 = sceneLightScale과 같게). 0 = 끔 → 레시피 조명만 비춤
+        public string[] hideObjects = new string[0];   // 이 룩일 때 숨길 장면 물체 이름 (예: 작업대 위 반사판 TopReflection)
         public LookEnvironment environment = new LookEnvironment();
         public LookLight[] lights = new LookLight[0];
         public LookSoftbox[] softboxes = new LookSoftbox[0];
@@ -126,7 +129,7 @@ namespace RenderLook
         public bool depthOfField;
         public bool grain;
         public string antialiasing = "smaa";
-        public bool autoExposure = true;   // 기준 밝기: 화면 중간 밝기를 늘 같은 기준에 맞춤 (노출 슬라이더 = 기준에서 ±)
+        public bool autoExposure;          // 자동 노출 (기본 끔: 켜면 화면이 바뀔 때마다 밝기가 크게 출렁여서 고정 노출이 더 예측 가능)
         public float exposureKey = 0.8f;   // 그 기준 (1 = 18% 회색, 낮추면 전체가 어두워짐)
     }
 

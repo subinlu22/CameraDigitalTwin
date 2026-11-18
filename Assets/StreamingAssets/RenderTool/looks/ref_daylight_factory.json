@@ -3,7 +3,7 @@
   "displayName": "실사 공장 (낮 조명)",
   "order": 6,
   "referenceSize": 0.46,
-  "sceneLightScale": 0.9,
+  "sceneLightScale": 1,
   "note": "레시피: 레퍼런스 사진(천장 형광등, 중립 낮 조명, 도장 작업대, 약한 배경 흐림) 기준",
   "environment": {
     "hdri": "hdri/photo_studio_loft_hall_2k.hdr",
@@ -126,7 +126,7 @@
     },
     "colorGrading": {
       "tonemapper": "aces",
-      "postExposure": 0,
+      "postExposure": 0.3,
       "contrast": 8,
       "saturation": 4,
       "temperature": -4,
@@ -164,7 +164,7 @@
     "depthOfField": true,
     "grain": false,
     "antialiasing": "smaa",
-    "autoExposure": true,
+    "autoExposure": false,
     "exposureKey": 0.6
   },
   "camera": {
@@ -199,5 +199,9 @@
       "part": "belt_cloth",
       "material": "ref_belt_green"
     }
+  ],
+  "nearLightScale": 0,
+  "hideObjects": [
+    "TopReflection"
   ]
 }

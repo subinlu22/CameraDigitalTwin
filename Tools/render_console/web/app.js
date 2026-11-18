@@ -400,6 +400,7 @@ let refFile = null;
 function setRef(f) {
   if (!f || !f.type.startsWith("image/")) return;
   refFile = f; $("refImg").src = URL.createObjectURL(f); $("refImg").classList.remove("hidden"); $("refText").textContent = f.name;
+  showPick($("refImg").src);
 }
 $("refFile").onchange = (e) => setRef(e.target.files[0]);
 ["dragover", "dragleave", "drop"].forEach(ev => $("refBox").addEventListener(ev, e => {
@@ -414,6 +415,52 @@ $("refGo").onclick = async () => {
   const r = await (await fetch("/api/reference", { method: "POST", body: refFile })).json();
   toast(r.ok ? "색 맞추는 중…" : r.msg);
 };
+// ---------------------------------------------------------------- 부위 대조 (레퍼런스에서 부위 색 찍기 → 유니티 부위 색과 비교해 맞을 때까지)
+// 사진 위 누른 곳 둘레 9×9 픽셀 평균 = 그 부위의 레퍼런스 색. 대조는 콘솔 서버(match.py)가 반복
+let pickPart = null;
+const samples = {};
+const css = (c) => c ? `rgb(${c.map(v => Math.round(v * 255)).join(",")})` : "transparent";
+function drawPickParts() {
+  if (!S) return;
+  const lab = S.parts.filter(p => !p.auto && p.found);
+  if (!pickPart && lab.length) pickPart = lab[0].id;
+  $("pickParts").innerHTML = lab.map(p => `<button class="pchip${p.id === pickPart ? " on" : ""}" data-id="${esc(p.id)}"><i style="background:${css(samples[p.id])}"></i>${esc(p.label)}</button>`).join("");
+  $("pickParts").querySelectorAll(".pchip").forEach(b => b.onclick = () => { pickPart = b.dataset.id; drawPickParts(); });
+}
+function showPick(url) {
+  const img = new Image();
+  img.onload = () => {
+    const cv = $("pickCanvas"); cv.width = img.naturalWidth; cv.height = img.naturalHeight;
+    cv.getContext("2d").drawImage(img, 0, 0); cv.img = img;
+    $("pickWrap").classList.remove("hidden"); drawPickParts();
+  };
+  img.src = url;
+}
+$("pickCanvas").onclick = (e) => {
+  if (!pickPart) return toast("먼저 부위를 고르세요");
+  const cv = $("pickCanvas"), k = cv.width / cv.clientWidth, x = Math.round(e.offsetX * k), y = Math.round(e.offsetY * k), ctx = cv.getContext("2d");
+  ctx.drawImage(cv.img, 0, 0);   // 표시 지우고 다시
+  const d = ctx.getImageData(Math.max(0, x - 4), Math.max(0, y - 4), 9, 9).data, s = [0, 0, 0];
+  for (let i = 0; i < d.length; i += 4) { s[0] += d[i]; s[1] += d[i + 1]; s[2] += d[i + 2]; }
+  samples[pickPart] = s.map(v => +(v / (d.length / 4) / 255).toFixed(3));
+  ctx.strokeStyle = "#fff"; ctx.lineWidth = 3 * k; ctx.strokeRect(x - 6 * k, y - 6 * k, 12 * k, 12 * k);
+  const lab = S.parts.filter(p => !p.auto && p.found), i = lab.findIndex(p => p.id === pickPart);
+  if (i >= 0 && i < lab.length - 1) pickPart = lab[i + 1].id;   // 다음 부위로 자동 이동
+  drawPickParts();
+};
+$("matchGo").onclick = async () => {
+  if (!Object.keys(samples).length) return toast("사진에서 부위 색을 먼저 찍으세요");
+  const r = await (await fetch("/api/match", { method: "POST", body: JSON.stringify({ samples }) })).json();
+  toast(r.ok ? "부위 대조 시작…" : r.msg);
+};
+function drawMatch(table) {
+  if (!table || !table.length || !S) return;
+  const name = (id) => (S.parts.find(p => p.id === id) || {}).label || id;
+  $("matchTable").innerHTML = `<div class="mrow head"><span>부위</span><span>레퍼런스</span><span>지금</span><span>ΔE</span></div>` +
+    table.map(t => `<div class="mrow"><span>${esc(name(t.id))}</span><i style="background:${css(t.ref)}"></i><i style="background:${css(t.cur)}"></i>
+      <b class="${t.ok ? "ok" : "bad"}">${t.de == null ? "—" : t.de}${t.ok ? " ✔" : " ✖"}</b></div>`).join("");
+}
+
 $("refUndo").onclick = () => {   // 룩의 원래 세부 값으로 (색 맞추기 전)
   if (!S || !S.look || !S.lookDefaults) return toast("되돌릴 룩이 없어요");
   editAt = 0; post({ cmd: "look_params", look: S.lookDefaults }); toast("색 맞추기 되돌림");
@@ -429,6 +476,7 @@ async function poll() {
     $("conn").textContent = r.connected ? "유니티 연결됨" : r.state ? "연결 끊김" : "유니티 기다리는 중";
     if (r.connected) startView();
     libTick(r);
+    drawMatch(r.match);
     $("refHint").textContent = S && S.look ? "지금 룩 위에 맞춰요" : "룩을 먼저 고르기";
     const img = $("view");
     $("liveChip").classList.toggle("on", r.connected && img.naturalWidth > 0);

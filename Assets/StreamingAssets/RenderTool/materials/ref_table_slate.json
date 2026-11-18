@@ -1,0 +1,26 @@
+{
+  "id": "ref_table_slate",
+  "displayName": "짙은 슬레이트 작업대",
+  "category": "reference",
+  "note": "레퍼런스 차분한 셀 · 작업대. 짙은 청회색, 은은한 반사",
+  "recipe": "",
+  "mapping": "uv",
+  "base": {
+    "color": [
+      0.24,
+      0.3,
+      0.36
+    ],
+    "metallic": 0.0,
+    "roughness": 0.7,
+    "normalMap": "textures/detail/detail_grain.png",
+    "normalStrength": 0.08,
+    "textureScale": 2
+  },
+  "ranges": {
+    "metallic": [],
+    "roughness": [],
+    "normalStrength": []
+  },
+  "matchNames": []
+}

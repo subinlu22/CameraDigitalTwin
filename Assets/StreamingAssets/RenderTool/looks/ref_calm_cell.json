@@ -1,0 +1,174 @@
+{
+  "id": "ref_calm_cell",
+  "displayName": "실사 차분한 셀",
+  "order": 4,
+  "referenceSize": 0.46,
+  "sceneLightScale": 1,
+  "note": "레시피: 레퍼런스(어둡고 차분한 공장, 짙은 작업대, 차가운 그림자, 중간 배경 흐림) 기준. 기본 추천",
+  "environment": {
+    "hdri": "hdri/photo_studio_loft_hall_2k.hdr",
+    "hdriRotation": 200,
+    "ambientIntensity": 0.95,
+    "reflectionIntensity": 0.45
+  },
+  "lights": [
+    {
+      "name": "키 (위 가운데 부드럽게)",
+      "type": "spot",
+      "color": [
+        1,
+        0.98,
+        0.95
+      ],
+      "intensity": 1.1,
+      "position": [
+        0.05,
+        1.0,
+        0.45
+      ],
+      "aimAtCenter": true,
+      "range": 4,
+      "spotAngle": 90,
+      "shadows": true
+    },
+    {
+      "name": "림 (뒤 차가운)",
+      "type": "spot",
+      "color": [
+        0.65,
+        0.85,
+        1
+      ],
+      "intensity": 0.6,
+      "position": [
+        0.2,
+        0.6,
+        -0.9
+      ],
+      "aimAtCenter": true,
+      "range": 4,
+      "spotAngle": 60,
+      "shadows": false
+    }
+  ],
+  "softboxes": [
+    {
+      "name": "위 넓은 판",
+      "position": [
+        0,
+        0.95,
+        0.15
+      ],
+      "size": [
+        1.6,
+        0.9
+      ],
+      "emission": [
+        1.2,
+        1.25,
+        1.3
+      ]
+    }
+  ],
+  "reflectionProbe": {
+    "enabled": true,
+    "size": [
+      2.6,
+      1.6,
+      2.6
+    ],
+    "intensity": 1,
+    "resolution": 256
+  },
+  "post": {
+    "ambientOcclusion": {
+      "enabled": true,
+      "intensity": 1.0,
+      "thickness": 1.1,
+      "color": [
+        0.02,
+        0.03,
+        0.05
+      ]
+    },
+    "colorGrading": {
+      "tonemapper": "aces",
+      "postExposure": 0.2,
+      "contrast": 14,
+      "saturation": 10,
+      "temperature": -6,
+      "tint": 0,
+      "lift": [
+        0.97,
+        1.0,
+        1.05,
+        -0.02
+      ],
+      "gamma": [
+        0.99,
+        1.0,
+        1.02,
+        0
+      ],
+      "gain": [
+        1,
+        1,
+        1,
+        -0.05
+      ]
+    },
+    "bloom": {
+      "enabled": true,
+      "threshold": 1.3,
+      "intensity": 0.05,
+      "softKnee": 0.6
+    },
+    "vignette": {
+      "enabled": true,
+      "intensity": 0.2,
+      "smoothness": 0.45
+    },
+    "depthOfField": true,
+    "grain": false,
+    "antialiasing": "smaa",
+    "autoExposure": false,
+    "exposureKey": 0.55
+  },
+  "camera": {
+    "focalLength": 50,
+    "aperture": 4,
+    "angles": [
+      {
+        "name": "front",
+        "direction": [
+          0,
+          0.3,
+          1
+        ],
+        "distance": 1.2
+      }
+    ]
+  },
+  "parts": [
+    {
+      "part": "belt_frame",
+      "material": "ref_aluminum_satin"
+    },
+    {
+      "part": "workbench",
+      "material": "ref_table_slate"
+    },
+    {
+      "part": "robot_body",
+      "material": "ref_yellow_satin"
+    },
+    {
+      "part": "belt_cloth",
+      "material": "ref_belt_deep_green"
+    }
+  ],
+  "nearLightScale": 0,
+  "hideObjects": [
+    "TopReflection"
+  ]
+}

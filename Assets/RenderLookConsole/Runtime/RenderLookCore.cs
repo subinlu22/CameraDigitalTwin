@@ -170,6 +170,24 @@ namespace RenderLook
             Parts.AddRange(autos);
         }
 
+        // 레퍼런스 대조: 이 렌더러가 속한 이름표 부위 id (없으면 null)
+        public string PartOf(Renderer r)
+        {
+            if (IsOurs(r)) return null;
+            foreach (var m in r.sharedMaterials)
+            {
+                if (!m) continue;
+                var p = PartFor(r, sourceOf.TryGetValue(m, out var o) ? o : m);
+                if (p != null && !p.auto) return p.id;
+            }
+            return null;
+        }
+
+        // 마지막으로 잰 부위 색 (콘솔 "measure" 명령 → 상태 메시지로 보냄)
+        public List<PartMeasure> Measures { get; private set; } = new List<PartMeasure>();
+        public int MeasureSeq { get; private set; }
+        public void MeasureParts() { Measures = RenderLookMeasure.Measure(this); MeasureSeq++; Notify(""); }
+
         Part PartFor(Renderer r, Material src)
         {
             foreach (var p in Parts)
@@ -329,6 +347,9 @@ namespace RenderLook
         Material savedSky; AmbientMode savedAmbMode; float savedAmbInt, savedReflInt, setAmbInt, setReflInt;
         readonly Dictionary<Light, (float original, float set)> savedLights = new Dictionary<Light, (float, float)>();
         PostProcessLayer postLayer; bool postTurnedOn;
+        const float NearRadius = 2.5f;     // 초점에서 이 거리 안의 원래 조명 = "근처 조명" (nearLightScale)
+        readonly HashSet<Light> nearLights = new HashSet<Light>(); float nearScale = -1f;
+        readonly List<GameObject> hiddenObjects = new List<GameObject>();
         Camera cam; int savedCull, setCull; int softboxLayer = -1;
 
         public void SetLook(string id)
@@ -375,7 +396,7 @@ namespace RenderLook
             var g = l.post?.colorGrading ?? new LookColorGrading();
             return new LookParams
             {
-                ambient = env.ambientIntensity, reflection = env.reflectionIntensity, sceneLight = l.sceneLightScale,
+                ambient = env.ambientIntensity, reflection = env.reflectionIntensity, sceneLight = l.cleanSlate ? 0f : l.sceneLightScale,
                 exposure = g.postExposure, contrast = g.contrast, saturation = g.saturation, temperature = g.temperature, tint = g.tint,
                 lift = Tone(g.lift), gamma = Tone(g.gamma), gain = Tone(g.gain),
                 key = l.post != null && l.post.exposureKey > 0 ? l.post.exposureKey : 0.8f,
@@ -433,7 +454,23 @@ namespace RenderLook
 
             // 2) 원래 조명 밝기 기억 (배율은 ApplyParams에서)
             savedLights.Clear();
-            foreach (var li in FindObjectsByType<Light>(FindObjectsSortMode.None)) savedLights[li] = (li.intensity, li.intensity);
+            nearLights.Clear();
+            foreach (var li in FindObjectsByType<Light>(FindObjectsSortMode.None))
+            {
+                savedLights[li] = (li.intensity, li.intensity);
+                if (li.type != LightType.Directional && Vector3.Distance(li.transform.position, c) < NearRadius) nearLights.Add(li);
+            }
+            nearScale = l.cleanSlate ? -1f : l.nearLightScale;
+            if (l.cleanSlate) ClearStage();
+
+            // 이 룩일 때 숨길 물체 (예: 작업대 위 반사판 → 재질이 그대로 보이게)
+            hiddenObjects.Clear();
+            if (l.hideObjects != null)
+                foreach (var n in l.hideObjects)
+                {
+                    var go = string.IsNullOrEmpty(n) ? null : GameObject.Find(n);
+                    if (go && go.activeSelf) { go.SetActive(false); hiddenObjects.Add(go); }
+                }
 
             // 3) 추가 조명
             if (l.lights != null)
@@ -535,7 +572,7 @@ namespace RenderLook
                 if (!li) continue;
                 var (orig, set) = savedLights[li];
                 if (!Mathf.Approximately(li.intensity, set)) continue;   // 다른 스크립트가 바꾼 조명은 건드리지 않음
-                float v = orig * p.sceneLight;
+                float v = orig * (nearScale >= 0f && nearLights.Contains(li) ? nearScale : p.sceneLight);
                 li.intensity = v; savedLights[li] = (orig, v);
             }
             if (grading)
@@ -559,6 +596,9 @@ namespace RenderLook
             foreach (var kv in savedLights)
                 if (kv.Key && Mathf.Approximately(kv.Key.intensity, kv.Value.set)) kv.Key.intensity = kv.Value.original;
             savedLights.Clear();
+            foreach (var go in hiddenObjects) if (go) go.SetActive(true);
+            hiddenObjects.Clear();
+            RestoreStage();
             if (cam && softboxLayer >= 0 && cam.cullingMask == setCull) cam.cullingMask = savedCull;
             if (postTurnedOn && postLayer) postLayer.enabled = false;
             postTurnedOn = false;
@@ -568,6 +608,37 @@ namespace RenderLook
             if (sky) { Destroy(sky); sky = null; }
             if (profile) { Destroy(profile); profile = null; }
             grading = null; bloomFx = null; aeFx = null;
+        }
+
+        // ---------------- 빈 무대: 장면이 원래 가진 빛·효과를 잠깐 끔 (룩을 끄면 RestoreStage로 그대로 돌아옴)
+        readonly List<Behaviour> offStage = new List<Behaviour>();
+        readonly List<Renderer> offOverlays = new List<Renderer>();
+        LightmapData[] savedLightmaps;
+
+        void ClearStage()
+        {
+            // 원래 후처리 볼륨·반사 프로브 (이 룩 것은 아직 안 만들어짐)
+            foreach (var v in FindObjectsByType<PostProcessVolume>(FindObjectsSortMode.None)) if (v.enabled) { v.enabled = false; offStage.Add(v); }
+            foreach (var rp in FindObjectsByType<ReflectionProbe>(FindObjectsSortMode.None)) if (rp.enabled) { rp.enabled = false; offStage.Add(rp); }
+            // 반사판처럼 위에 덧씌우는 투명 물체 (셰이더 이름에 Reflection)
+            foreach (var r in FindObjectsByType<Renderer>(FindObjectsSortMode.None))
+            {
+                if (!r.enabled || IsOurs(r)) continue;
+                bool overlay = r.sharedMaterials.Length > 0;
+                foreach (var m in r.sharedMaterials) if (!m || m.renderQueue < 2450 || !m.shader.name.Contains("Reflection")) overlay = false;
+                if (overlay) { r.enabled = false; offOverlays.Add(r); }
+            }
+            // 미리 구운 조명(라이트맵): 빼면 정적 물체도 이 룩의 조명만 받음
+            savedLightmaps = LightmapSettings.lightmaps;
+            LightmapSettings.lightmaps = new LightmapData[0];
+        }
+
+        void RestoreStage()
+        {
+            foreach (var b in offStage) if (b) b.enabled = true;
+            foreach (var r in offOverlays) if (r) r.enabled = true;
+            offStage.Clear(); offOverlays.Clear();
+            if (savedLightmaps != null) { LightmapSettings.lightmaps = savedLightmaps; savedLightmaps = null; }
         }
 
         static PostProcessProfile BuildPost(LookPost p)
@@ -665,6 +736,13 @@ namespace RenderLook
             data.post.exposureKey = p.key;
             data.post.colorGrading.lift = Tone(p.lift); data.post.colorGrading.gamma = Tone(p.gamma); data.post.colorGrading.gain = Tone(p.gain);
             data.post.bloom.enabled = p.bloom > 0f; data.post.bloom.intensity = p.bloom;
+            // 지금 부위 재질도 레시피로 같이 저장 (이 룩을 다시 고르면 재질까지 돌아옴)
+            var recipe = new List<PartRecipe>();
+            foreach (var st in States.Values)
+                if (st.mode != "original" && !string.IsNullOrEmpty(st.preset))
+                    recipe.Add(new PartRecipe { part = st.id, material = st.preset, mode = st.mode, metallic = st.metallic, roughness = st.roughness,
+                                                normalStrength = st.normalStrength, tiling = st.tiling, color = (float[])st.color.Clone() });
+            data.parts = recipe.ToArray();
             string id = RenderLookFiles.Save("looks", look.id + "_custom", fid => { data.id = fid; return JsonUtility.ToJson(data, true); });
             Looks = RenderLookFiles.LoadLooks();
             look = Looks.Find(l => l.id == id) ?? look;
