@@ -7,12 +7,12 @@
   "mapping": "uv",
   "base": {
     "color": [
-      0.5,
-      0.55,
-      0.61
+      0.42,
+      0.47,
+      0.53
     ],
     "metallic": 0.75,
-    "roughness": 0.36,
+    "roughness": 0.42,
     "normalMap": "textures/detail/detail_brushed.png",
     "normalStrength": 0.3,
     "textureScale": 2

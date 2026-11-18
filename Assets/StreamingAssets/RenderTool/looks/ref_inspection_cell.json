@@ -8,8 +8,8 @@
   "environment": {
     "hdri": "hdri/photo_studio_loft_hall_2k.hdr",
     "hdriRotation": 200,
-    "ambientIntensity": 0.9,
-    "reflectionIntensity": 1.0
+    "ambientIntensity": 0.75,
+    "reflectionIntensity": 0.5
   },
   "lights": [
     {
@@ -82,9 +82,9 @@
         0.9
       ],
       "emission": [
-        2.2,
-        2.3,
-        2.4
+        1.5,
+        1.55,
+        1.6
       ]
     },
     {
@@ -128,7 +128,7 @@
     },
     "colorGrading": {
       "tonemapper": "aces",
-      "postExposure": -0.45,
+      "postExposure": 0,
       "contrast": 18,
       "saturation": 16,
       "temperature": -10,
@@ -149,7 +149,7 @@
         1,
         1,
         1,
-        0
+        -0.1
       ]
     },
     "bloom": {
@@ -166,7 +166,8 @@
     "depthOfField": true,
     "grain": false,
     "antialiasing": "smaa",
-    "autoExposure": true
+    "autoExposure": true,
+    "exposureKey": 0.65
   },
   "camera": {
     "focalLength": 50,

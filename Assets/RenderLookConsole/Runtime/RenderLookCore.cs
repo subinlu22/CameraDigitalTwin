@@ -40,6 +40,7 @@ namespace RenderLook
         public float temperature, tint;    // 색온도(+ 따뜻하게) · 색조(+ 자홍, − 초록)
         // 어두운 곳(lift)·중간(gamma)·밝은 곳(gain) 색: RGB + 밝기(w). 기본 (1,1,1,0). 레퍼런스 색 맞추기가 씀
         public float[] lift = { 1, 1, 1, 0 }, gamma = { 1, 1, 1, 0 }, gain = { 1, 1, 1, 0 };
+        public float key = 0.8f;           // 기준 밝기 (자동 노출 목표)
     }
 
     public class Part
@@ -324,7 +325,7 @@ namespace RenderLook
 
         // ================================================================ 룩 (조명 분위기)
         LookPresetData look;
-        GameObject rig; Material sky; PostProcessProfile profile; ColorGrading grading; Bloom bloomFx;
+        GameObject rig; Material sky; PostProcessProfile profile; ColorGrading grading; Bloom bloomFx; AutoExposure aeFx;
         Material savedSky; AmbientMode savedAmbMode; float savedAmbInt, savedReflInt, setAmbInt, setReflInt;
         readonly Dictionary<Light, (float original, float set)> savedLights = new Dictionary<Light, (float, float)>();
         PostProcessLayer postLayer; bool postTurnedOn;
@@ -377,6 +378,7 @@ namespace RenderLook
                 ambient = env.ambientIntensity, reflection = env.reflectionIntensity, sceneLight = l.sceneLightScale,
                 exposure = g.postExposure, contrast = g.contrast, saturation = g.saturation, temperature = g.temperature, tint = g.tint,
                 lift = Tone(g.lift), gamma = Tone(g.gamma), gain = Tone(g.gain),
+                key = l.post != null && l.post.exposureKey > 0 ? l.post.exposureKey : 0.8f,
                 bloom = l.post?.bloom != null && l.post.bloom.enabled ? l.post.bloom.intensity : 0f,
             };
         }
@@ -508,6 +510,7 @@ namespace RenderLook
                 dof.kernelSize.Override(KernelSize.Medium);
             }
             grading = profile.GetSetting<ColorGrading>();
+            profile.TryGetSettings(out aeFx);
             bloomFx = profile.GetSetting<Bloom>();
             var vgo = new GameObject("PostVolume") { layer = 0 };
             vgo.transform.SetParent(rig.transform, false);
@@ -542,6 +545,7 @@ namespace RenderLook
                 grading.lift.Override(V4(p.lift)); grading.gamma.Override(V4(p.gamma)); grading.gain.Override(V4(p.gain));
             }
             if (bloomFx) { bloomFx.enabled.Override(p.bloom > 0f); bloomFx.intensity.Override(p.bloom); }
+            if (aeFx) aeFx.keyValue.Override(Mathf.Clamp(p.key, 0.1f, 3f));
         }
 
         void RemoveLook()
@@ -563,7 +567,7 @@ namespace RenderLook
             Destroy(rig); rig = null;
             if (sky) { Destroy(sky); sky = null; }
             if (profile) { Destroy(profile); profile = null; }
-            grading = null; bloomFx = null;
+            grading = null; bloomFx = null; aeFx = null;
         }
 
         static PostProcessProfile BuildPost(LookPost p)
@@ -583,7 +587,7 @@ namespace RenderLook
                 var ae = prof.AddSettings<AutoExposure>(); ae.enabled.Override(true);
                 ae.filtering.Override(new Vector2(AeLow, AeHigh));
                 ae.minLuminance.Override(-AeRange); ae.maxLuminance.Override(AeRange);
-                ae.keyValue.Override(1f);
+                ae.keyValue.Override(p.exposureKey > 0 ? p.exposureKey : 0.8f);
                 ae.eyeAdaptation.Override(EyeAdaptation.Progressive);
                 ae.speedUp.Override(3f); ae.speedDown.Override(2f);
             }
@@ -658,6 +662,7 @@ namespace RenderLook
             data.post.colorGrading.postExposure = p.exposure; data.post.colorGrading.contrast = p.contrast;
             data.post.colorGrading.saturation = p.saturation;
             data.post.colorGrading.temperature = p.temperature; data.post.colorGrading.tint = p.tint;
+            data.post.exposureKey = p.key;
             data.post.colorGrading.lift = Tone(p.lift); data.post.colorGrading.gamma = Tone(p.gamma); data.post.colorGrading.gain = Tone(p.gain);
             data.post.bloom.enabled = p.bloom > 0f; data.post.bloom.intensity = p.bloom;
             string id = RenderLookFiles.Save("looks", look.id + "_custom", fid => { data.id = fid; return JsonUtility.ToJson(data, true); });

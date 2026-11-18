@@ -127,6 +127,7 @@ namespace RenderLook
         public bool grain;
         public string antialiasing = "smaa";
         public bool autoExposure = true;   // 기준 밝기: 화면 중간 밝기를 늘 같은 기준에 맞춤 (노출 슬라이더 = 기준에서 ±)
+        public float exposureKey = 0.8f;   // 그 기준 (1 = 18% 회색, 낮추면 전체가 어두워짐)
     }
 
     [Serializable] public class LookAO { public bool enabled; public float intensity = 1f; public float thickness = 1f; public float[] color = { 0, 0, 0 }; }

@@ -6,7 +6,9 @@
 const $ = (id) => document.getElementById(id);
 const LOOK_SLIDERS = [
   ["ambient", "환경광", 0, 2, 0.05], ["reflection", "반사", 0, 2, 0.05], ["sceneLight", "원래 조명", 0, 2, 0.05],
-  ["exposure", "노출", -2, 2, 0.05], ["contrast", "대비", -50, 50, 1], ["saturation", "채도", -60, 60, 1],
+  ["exposure", "노출", -2, 2, 0.05], ["key", "기준 밝기", 0.2, 2, 0.05],
+  ["hi", "밝은 곳", -0.5, 0.5, 0.01], ["mid", "중간톤", -0.5, 0.5, 0.01], ["lo", "어두운 곳", -0.3, 0.3, 0.01],
+  ["contrast", "대비", -50, 50, 1], ["saturation", "채도", -60, 60, 1],
   ["temperature", "색온도", -60, 60, 1], ["tint", "색조", -60, 60, 1], ["bloom", "빛 번짐", 0, 1, 0.01],
 ];
 const MAT_SLIDERS = [
@@ -102,12 +104,19 @@ function slider(parent, [key, label, min, max, step], onInput, getDefault) {
 
 // ---------------------------------------------------------------- 룩
 const lookSl = {};
+// 밝은 곳·중간톤·어두운 곳 = gain·gamma·lift의 밝기(4번째 값). 색(앞 3개)은 레퍼런스 색 맞추기가 씀
+const TONE = { hi: "gain", mid: "gamma", lo: "lift" };
+const getP = (p, k) => !p ? 0 : TONE[k] ? (p[TONE[k]] || [1, 1, 1, 0])[3] : p[k];
+function setP(p, k, v) {
+  if (!TONE[k]) { p[k] = v; return; }
+  const a = (p[TONE[k]] || [1, 1, 1, 0]).slice(); a[3] = v; p[TONE[k]] = a;
+}
 LOOK_SLIDERS.forEach(d => {
   lookSl[d[0]] = slider($("lookSliders"), d, () => {
-    const look = Object.assign({}, S && S.lookParams);   // 슬라이더에 없는 값(색 맞추기 lift·gamma·gain)은 그대로
-    for (const k in lookSl) look[k] = +lookSl[k].querySelector("input").value;
+    const look = Object.assign({}, S && S.lookParams);   // 슬라이더에 없는 값(색 맞추기 색)은 그대로
+    for (const k in lookSl) setP(look, k, +lookSl[k].querySelector("input").value);
     throttled("look", () => ({ cmd: "look_params", look }));
-  }, () => S && S.look && S.lookDefaults ? S.lookDefaults[d[0]] : null);
+  }, () => S && S.look && S.lookDefaults ? getP(S.lookDefaults, d[0]) : null);
 });
 
 function drawLooks() {
@@ -122,7 +131,7 @@ function drawLooks() {
   $("lookHint").textContent = cur ? "움직이면 바로 반영" : "룩을 고르면 조절할 수 있어요";
   for (const k in lookSl) {
     lookSl[k].enable(!!cur);
-    if (fresh()) lookSl[k].set(cur && S.lookParams ? S.lookParams[k] : 0);
+    if (fresh()) lookSl[k].set(cur && S.lookParams ? getP(S.lookParams, k) : 0);
   }
 }
 
