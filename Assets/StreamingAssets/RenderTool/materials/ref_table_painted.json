@@ -1,0 +1,26 @@
+{
+  "id": "ref_table_painted",
+  "displayName": "청회색 도장 작업대",
+  "category": "reference",
+  "note": "레퍼런스 낮 조명 공장 · 작업대. 무광에 가까운 도장, 형광등이 부드럽게 비침",
+  "recipe": "",
+  "mapping": "uv",
+  "base": {
+    "color": [
+      0.22,
+      0.26,
+      0.31
+    ],
+    "metallic": 0.1,
+    "roughness": 0.38,
+    "normalMap": "textures/detail/detail_grain.png",
+    "normalStrength": 0.08,
+    "textureScale": 2
+  },
+  "ranges": {
+    "metallic": [],
+    "roughness": [],
+    "normalStrength": []
+  },
+  "matchNames": []
+}
