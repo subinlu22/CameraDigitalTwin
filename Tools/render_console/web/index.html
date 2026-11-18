@@ -41,6 +41,15 @@
       <div class="looks" id="looks"></div>
       <p class="hint" id="lookNote" style="margin-top:10px"></p>
     </div>
+    <div class="sec">
+      <div class="label"><span>실사 라이브러리</span><button class="link" id="openLib">HDRI·재질 고르기 ›</button></div>
+      <p class="hint">Poly Haven 실사 HDRI 조명 · ambientCG 스캔 재질 (CC0, 무료). 누르면 받아서 바로 적용돼요.</p>
+    </div>
+    <div class="sec">
+      <div class="label"><span>레퍼런스 색 맞추기</span><span id="refHint">룩을 먼저 고르기</span></div>
+      <label class="refbox" id="refBox"><input type="file" id="refFile" accept="image/*" hidden><img id="refImg" class="hidden" alt=""><span id="refText">마음에 드는 사진을 끌어 놓거나 눌러서 고르기</span></label>
+      <button class="go refgo" id="refGo">이 사진 색감으로 맞추기</button>
+    </div>
     <div class="sec" id="lookSec">
       <div class="label"><span>조명 세부</span><span id="lookHint">룩을 고르면 조절할 수 있어요</span></div>
       <div id="lookSliders"></div>
@@ -97,6 +106,24 @@
     <button class="ghost" id="resetPart">원본으로</button>
     <button class="go" id="saveMat">내 재질로 저장</button>
   </div>
+</aside>
+<aside class="panel libp" id="libPanel">
+  <div class="head">
+    <div>
+      <div class="title">실사 라이브러리</div>
+      <div class="sub">눌러서 받기 → 바로 적용 · CC0</div>
+    </div>
+    <button class="x" id="closeLib" aria-label="라이브러리 닫기">×</button>
+  </div>
+  <div class="scroll">
+    <div class="sec">
+      <div class="tabs" id="libTabs"><button data-k="hdri" class="on">HDRI 조명</button><button data-k="mat">실사 재질</button></div>
+      <input class="search" id="libSearch" type="search" placeholder="찾기 (예: studio, warehouse / metal, rubber)">
+      <p class="hint" id="libHint" style="margin:8px 0"></p>
+      <div class="looks" id="libGrid"></div>
+    </div>
+  </div>
+  <div class="foot"><span class="hint" id="libStatus">재질은 왼쪽에서 고른 부위에 입혀져요</span></div>
 </aside>
 <script src="app.js"></script>
 </body>

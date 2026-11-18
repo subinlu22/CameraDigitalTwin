@@ -37,6 +37,7 @@ namespace RenderLook
     public class LookParams
     {
         public float ambient = 1f, reflection = 1f, sceneLight = 1f, exposure, contrast, saturation, bloom;
+        public float temperature, tint;    // 색온도(+ 따뜻하게) · 색조(+ 자홍, − 초록). 레퍼런스 색 맞추기가 주로 씀
     }
 
     public class Part
@@ -259,6 +260,7 @@ namespace RenderLook
                 m.DisableKeyword("_METALLICGLOSSMAP");
                 m.SetFloat("_SmoothnessTextureChannel", 0);
                 m.DisableKeyword("_SMOOTHNESS_TEXTURE_ALBEDO_CHANNEL_A");
+                if (preset != null) WriteScan(m, preset.@base, s);
             }
 
             // 결 (디테일 노멀): 원래 노멀맵은 그대로, 그 위에 더함. 반복 4×4 × 결 크기 (렌더툴과 같음)
@@ -273,6 +275,25 @@ namespace RenderLook
                 m.EnableKeyword("_NORMALMAP"); m.EnableKeyword("_DETAIL_MULX2");
             }
             else { m.SetTexture("_DetailNormalMap", null); m.DisableKeyword("_DETAIL_MULX2"); }
+        }
+
+        // 실사 스캔 재질: 색 사진·표면 노멀·금속/매끈함 맵을 입힘 (맵이 없는 프리셋은 그대로)
+        // 거칠기 슬라이더 0.5 = 맵 그대로, 낮추면 더 매끈 / 높이면 더 거칠게. 결 크기 = 사진 반복 크기
+        static void WriteScan(Material m, MaterialValues b, PartState s)
+        {
+            var albedo = RenderLookFiles.LoadImage(b.albedoMap, false);
+            var normal = RenderLookFiles.LoadNormal(b.surfaceNormalMap);
+            var metalGloss = RenderLookFiles.LoadImage(b.metalGlossMap, true);
+            if (!albedo && !normal && !metalGloss) return;
+            var tile = Vector2.one * Mathf.Max(0.05f, s.tiling);
+            if (albedo) { m.SetTexture("_MainTex", albedo); m.SetTextureScale("_MainTex", tile); }
+            if (normal) { m.SetTexture("_BumpMap", normal); m.SetFloat("_BumpScale", 1f); m.EnableKeyword("_NORMALMAP"); }
+            if (metalGloss)
+            {
+                m.SetTexture("_MetallicGlossMap", metalGloss);
+                m.EnableKeyword("_METALLICGLOSSMAP");
+                m.SetFloat("_GlossMapScale", Mathf.Clamp01((1f - Mathf.Clamp01(s.roughness)) * 2f));
+            }
         }
 
         void RestoreMaterials()
@@ -323,7 +344,7 @@ namespace RenderLook
             return new LookParams
             {
                 ambient = env.ambientIntensity, reflection = env.reflectionIntensity, sceneLight = l.sceneLightScale,
-                exposure = g.postExposure, contrast = g.contrast, saturation = g.saturation,
+                exposure = g.postExposure, contrast = g.contrast, saturation = g.saturation, temperature = g.temperature, tint = g.tint,
                 bloom = l.post?.bloom != null && l.post.bloom.enabled ? l.post.bloom.intensity : 0f,
             };
         }
@@ -473,6 +494,7 @@ namespace RenderLook
             if (grading)
             {
                 grading.postExposure.Override(p.exposure); grading.contrast.Override(p.contrast); grading.saturation.Override(p.saturation);
+                grading.temperature.Override(p.temperature); grading.tint.Override(p.tint);
             }
             if (bloomFx) { bloomFx.enabled.Override(p.bloom > 0f); bloomFx.intensity.Override(p.bloom); }
         }
@@ -555,6 +577,7 @@ namespace RenderLook
                 {
                     color = (float[])s.color.Clone(), metallic = s.metallic, roughness = s.roughness,
                     normalMap = src?.@base.normalMap, normalStrength = s.normalStrength, textureScale = s.tiling,
+                    albedoMap = src?.@base.albedoMap, surfaceNormalMap = src?.@base.surfaceNormalMap, metalGlossMap = src?.@base.metalGlossMap,
                 },
             };
             data.ranges = new MaterialRanges();   // 내가 고른 값이 범위에 잘리지 않게 (범위는 비움 = 제한 없음)
@@ -578,6 +601,7 @@ namespace RenderLook
             data.sceneLightScale = p.sceneLight;
             data.post.colorGrading.postExposure = p.exposure; data.post.colorGrading.contrast = p.contrast;
             data.post.colorGrading.saturation = p.saturation;
+            data.post.colorGrading.temperature = p.temperature; data.post.colorGrading.tint = p.tint;
             data.post.bloom.enabled = p.bloom > 0f; data.post.bloom.intensity = p.bloom;
             string id = RenderLookFiles.Save("looks", look.id + "_custom", fid => { data.id = fid; return JsonUtility.ToJson(data, true); });
             Looks = RenderLookFiles.LoadLooks();

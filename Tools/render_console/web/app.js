@@ -6,7 +6,8 @@
 const $ = (id) => document.getElementById(id);
 const LOOK_SLIDERS = [
   ["ambient", "환경광", 0, 2, 0.05], ["reflection", "반사", 0, 2, 0.05], ["sceneLight", "원래 조명", 0, 2, 0.05],
-  ["exposure", "노출", -2, 2, 0.05], ["contrast", "대비", -50, 50, 1], ["saturation", "채도", -60, 60, 1], ["bloom", "빛 번짐", 0, 1, 0.01],
+  ["exposure", "노출", -2, 2, 0.05], ["contrast", "대비", -50, 50, 1], ["saturation", "채도", -60, 60, 1],
+  ["temperature", "색온도", -60, 60, 1], ["tint", "색조", -60, 60, 1], ["bloom", "빛 번짐", 0, 1, 0.01],
 ];
 const MAT_SLIDERS = [
   ["metallic", "금속성", 0, 1, 0.01, "rMetal"], ["roughness", "거칠기", 0, 1, 0.01, "rRough"],
@@ -231,7 +232,7 @@ document.querySelectorAll("#seg button").forEach(b => b.onclick = () => {
   sendPart(b.dataset.m !== "original" && !st.preset, { mode: b.dataset.m });
 });
 
-function openBench() { document.body.classList.add("bench-open"); drawParts(); drawBench(); }
+function openBench() { document.body.classList.remove("lib-open"); document.body.classList.add("bench-open"); drawParts(); drawBench(); }
 $("openBench").onclick = () => { if (!sel && S) sel = (S.parts[0] || {}).id; openBench(); };
 $("closeBench").onclick = () => { document.body.classList.remove("bench-open"); drawParts(); };
 
@@ -335,6 +336,76 @@ window.addEventListener("resize", () => sendView());
 // 작업대를 열고 닫으면 렌더 뷰 크기가 바뀜 → 다 바뀐 뒤 다시 알림
 new MutationObserver(() => setTimeout(sendView, 380)).observe(document.body, { attributes: true, attributeFilter: ["class"] });
 
+// ---------------------------------------------------------------- 실사 라이브러리 (Poly Haven HDRI · ambientCG 재질)
+// 목록·받기는 콘솔 서버가 함 (/api/lib/...). HDRI = 받으면 그 룩으로 바로 바뀜, 재질 = 고른 부위에 입힘
+let libKind = "hdri", libItems = [], libTimer = 0, pendingMat = null, pendingPart = null, lastJob = "";
+async function loadLib() {
+  $("libHint").textContent = "목록 불러오는 중…"; $("libGrid").innerHTML = "";
+  const q = $("libSearch").value.trim();
+  try {
+    const r = await (await fetch(libKind === "hdri" ? "/api/lib/hdri" : "/api/lib/mat?q=" + encodeURIComponent(q))).json();
+    if (!r.ok) { $("libHint").textContent = r.msg; return; }
+    libItems = libKind === "hdri" ? r.data : r.data.items;
+    drawLib();
+  } catch (e) { $("libHint").textContent = "콘솔 서버에 연결이 안 돼요"; }
+}
+function drawLib() {
+  const q = $("libSearch").value.trim().toLowerCase();
+  let list = libItems;
+  if (libKind === "hdri" && q) list = list.filter(x => x.name.toLowerCase().includes(q) || x.id.includes(q) || x.cats.some(c => c.includes(q)));
+  const have = new Set([...(S ? S.looks : []), ...(S ? S.materials : [])].map(x => x.id));
+  const pre = libKind === "hdri" ? "lib_hdri_" : "lib_";
+  $("libHint").textContent = libKind === "hdri" ? `HDRI ${list.length}개 (인기순) · 실내는 indoor, 스튜디오는 studio` : `재질 ${list.length}개 · 금속은 metal, 고무는 rubber`;
+  $("libGrid").innerHTML = list.slice(0, 80).map(x => `<button class="look" data-id="${esc(x.id)}" title="${esc(x.cats.join(", "))}">
+      <img class="ph" src="${esc(x.thumb)}" alt="" loading="lazy">${have.has(pre + x.id) ? `<span class="have">받음</span>` : ""}
+      <b>${esc(x.name)}</b><small>${esc(x.cats.slice(0, 3).join(" · "))}</small></button>`).join("");
+  $("libGrid").querySelectorAll(".look").forEach(b => b.onclick = () => libGet(b));
+}
+async function libGet(b) {
+  if (libKind === "mat") {
+    if (!sel) return toast("먼저 왼쪽 [부위 재질]에서 입힐 부위를 고르세요");
+    pendingMat = "lib_" + b.dataset.id; pendingPart = sel;
+  }
+  const r = await (await fetch("/api/lib/get", { method: "POST", body: JSON.stringify({ kind: libKind, id: b.dataset.id }) })).json();
+  if (!r.ok) { toast(r.msg); pendingMat = null; return; }
+  b.classList.add("busy"); toast("받는 중… (처음 한 번만, 수 MB)");
+}
+$("openLib").onclick = () => { document.body.classList.remove("bench-open"); document.body.classList.add("lib-open"); if (!libItems.length) loadLib(); };
+$("closeLib").onclick = () => document.body.classList.remove("lib-open");
+$("libTabs").querySelectorAll("button").forEach(b => b.onclick = () => {
+  libKind = b.dataset.k; libItems = []; $("libSearch").value = "";
+  $("libTabs").querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
+  $("libStatus").textContent = libKind === "hdri" ? "HDRI는 받으면 그 조명 룩으로 바로 바뀌어요" : "재질은 왼쪽에서 고른 부위에 입혀져요";
+  loadLib();
+});
+$("libSearch").oninput = () => { if (libKind === "hdri") return drawLib(); clearTimeout(libTimer); libTimer = setTimeout(loadLib, 450); };
+function libTick(r) {   // poll마다: 진행 알림, 받은 재질을 부위에 입히기
+  if (r.job && r.job !== lastJob) { lastJob = r.job; toast(r.job); $("libStatus").textContent = r.job; }
+  if (!r.busy) document.querySelectorAll("#libGrid .busy").forEach(b => b.classList.remove("busy"));
+  if (pendingMat && S && preset(pendingMat)) { sel = pendingPart; applyPreset(pendingMat); pendingMat = null; drawLib(); }
+}
+
+// ---------------------------------------------------------------- 레퍼런스 색 맞추기
+// 사진은 이 PC의 콘솔 서버로만 감 → 사진·렌더 뷰의 밝기·대비·채도·색온도를 비교해 조명 세부 슬라이더를 맞춤
+let refFile = null;
+function setRef(f) {
+  if (!f || !f.type.startsWith("image/")) return;
+  refFile = f; $("refImg").src = URL.createObjectURL(f); $("refImg").classList.remove("hidden"); $("refText").textContent = f.name;
+}
+$("refFile").onchange = (e) => setRef(e.target.files[0]);
+["dragover", "dragleave", "drop"].forEach(ev => $("refBox").addEventListener(ev, e => {
+  if (!e.dataTransfer || !e.dataTransfer.types.includes("Files")) return;
+  e.preventDefault(); $("refBox").classList.toggle("drop", ev === "dragover");
+  if (ev === "drop") setRef(e.dataTransfer.files[0]);
+}));
+$("refGo").onclick = async () => {
+  if (!refFile) return toast("먼저 레퍼런스 사진을 고르세요");
+  if (!S || !S.look) return toast("먼저 룩을 하나 고르세요 (그 룩의 세부 슬라이더를 움직여요)");
+  editAt = 0;
+  const r = await (await fetch("/api/reference", { method: "POST", body: refFile })).json();
+  toast(r.ok ? "색 맞추는 중…" : r.msg);
+};
+
 // ---------------------------------------------------------------- 받아서 그리기
 async function poll() {
   try {
@@ -344,6 +415,8 @@ async function poll() {
     $("live").classList.toggle("on", r.connected);
     $("conn").textContent = r.connected ? "유니티 연결됨" : r.state ? "연결 끊김" : "유니티 기다리는 중";
     if (r.connected) startView();
+    libTick(r);
+    $("refHint").textContent = S && S.look ? "지금 룩 위에 맞춰요" : "룩을 먼저 고르기";
     const img = $("view");
     $("liveChip").classList.toggle("on", r.connected && img.naturalWidth > 0);
     $("liveText").textContent = r.connected && img.naturalWidth ? `LIVE · ${img.naturalWidth}×${img.naturalHeight}${V.zoom > 1.01 ? " · " + Math.round(V.zoom * 100) + "%" : ""}` : "RENDER VIEW";

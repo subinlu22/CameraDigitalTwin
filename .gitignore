@@ -64,3 +64,12 @@ __pycache__/
 # ===== 라이선스 확인 전 글꼴 (이 PC에만, 없으면 SUIT로 대신) =====
 /Assets/Resources/Fonts/REATIC-*
 /Assets/Resources/Fonts/HadaCondensed-*
+# 렌더 룩 콘솔 [실사 라이브러리]로 받은 것 (Poly Haven·ambientCG, CC0) — PC마다 콘솔에서 다시 받기
+/Assets/StreamingAssets/RenderTool/textures/library/
+/Assets/StreamingAssets/RenderTool/textures/library.meta
+/Assets/StreamingAssets/RenderTool/thumbnails/library/
+/Assets/StreamingAssets/RenderTool/thumbnails/library.meta
+/Assets/StreamingAssets/RenderTool/looks/lib_*
+/Assets/StreamingAssets/RenderTool/materials/lib_*
+/Assets/StreamingAssets/RenderTool/thumbnails/looks/lib_*
+/Assets/StreamingAssets/RenderTool/hdri/*.hdr.meta

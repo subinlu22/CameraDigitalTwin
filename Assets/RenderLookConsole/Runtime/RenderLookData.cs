@@ -36,6 +36,10 @@ namespace RenderLook
         public float normalStrength;
         public float roughnessVariationTiles;   // 렌더툴(glTF)만 씀
         public float textureScale = 1f;
+        // 실사 스캔 재질 (콘솔 [실사 라이브러리]로 받은 것, 없으면 비움). 경로는 RenderTool 폴더 기준
+        public string albedoMap;          // 색 사진
+        public string surfaceNormalMap;   // 표면 노멀 (디테일 노멀 normalMap과 따로)
+        public string metalGlossMap;      // R = 금속, A = 매끈함 (콘솔이 금속·거칠기 맵을 합쳐 만듦)
     }
 
     [Serializable]
@@ -123,7 +127,7 @@ namespace RenderLook
     }
 
     [Serializable] public class LookAO { public bool enabled; public float intensity = 1f; public float thickness = 1f; public float[] color = { 0, 0, 0 }; }
-    [Serializable] public class LookColorGrading { public string tonemapper = "aces"; public float postExposure; public float contrast; public float saturation; }
+    [Serializable] public class LookColorGrading { public string tonemapper = "aces"; public float postExposure; public float contrast; public float saturation; public float temperature; public float tint; }
     [Serializable] public class LookBloom { public bool enabled; public float threshold = 1f; public float intensity; public float softKnee = 0.5f; }
     [Serializable] public class LookVignette { public bool enabled; public float intensity; public float smoothness = 0.2f; }
     [Serializable] public class LookCamera { public float focalLength = 50f; public float aperture = 32f; public LookAngle[] angles = { new LookAngle() }; }

@@ -8,8 +8,10 @@
   3) 화면에서 고르거나 슬라이더를 움직이면 UDP 5070으로 유니티에 명령을 보낸다
   4) 1초마다 "ping"을 보내서 유니티가 켜지는 순간 바로 연결된다 (콘솔이 켜져 있을 때만 유니티가 렌더 뷰를 보냄)
   5) 유니티가 TCP 5072로 보내는 렌더 뷰(JPG)를 받아 화면 가운데에 영상(MJPEG)으로 보여 준다
+  6) [실사 라이브러리] Poly Haven HDRI · ambientCG 재질을 받아 프리셋으로 만듦 (library.py)
+  7) [레퍼런스 색 맞추기] 사진 한 장의 색감에 렌더 뷰를 맞춤 (reference.py, Pillow 필요)
 유니티 쪽은 Assets/RenderLookConsole (장면에 안 넣어도 플레이하면 자동으로 생김). 메시지 형식: docs/render_look_messages.md
-파이썬 표준 라이브러리만 씀 (설치할 것 없음)
+1)~5)는 파이썬 표준 라이브러리만 씀. 6)의 금속·거칠기 합치기와 7)은 Pillow 필요 (pip install pillow)
 """
 import argparse
 import json
@@ -21,8 +23,12 @@ import sys
 import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 import webbrowser
+
+import library
+import reference
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -49,6 +55,7 @@ class UnityLink:
         self.rx.settimeout(0.5)
         self.running = True
         self.frame, self.frame_id = None, 0
+        self.job, self.job_busy, self.last_fetched = "", False, ""   # 라이브러리 받기·색 맞추기 진행 상황 (화면 아래 알림)
         self.frame_cv = threading.Condition()
         self.fsrv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.fsrv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -122,7 +129,8 @@ class UnityLink:
 
     def snapshot(self) -> dict:
         with self.lock:
-            return {"connected": self.connected(), "state": self.state}
+            return {"connected": self.connected(), "state": self.state, "job": self.job, "busy": self.job_busy,
+                    "fetched": self.last_fetched}
 
     def close(self):
         self.running = False
@@ -162,6 +170,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(dict(link.snapshot(), version=web_version()))
         if path == "/stream":
             return self._stream()
+        if path == "/api/lib/hdri":
+            return self._lib(lambda q: library.list_hdris())
+        if path == "/api/lib/mat":
+            return self._lib(lambda q: library.list_materials(q.get("q", [""])[0], int(q.get("offset", ["0"])[0] or 0)))
         if path.startswith("/assets/"):
             return self._asset(path[len("/assets/"):])
         f = (WEB / ("index.html" if path == "/" else path.lstrip("/"))).resolve()
@@ -186,6 +198,13 @@ class Handler(BaseHTTPRequestHandler):
         except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError, OSError):
             pass
 
+    def _lib(self, make):
+        q = urllib.parse.parse_qs(self.path.split("?", 1)[1]) if "?" in self.path else {}
+        try:
+            return self._json({"ok": True, "data": make(q)})
+        except Exception as e:   # 인터넷이 없거나 사이트가 바뀜
+            return self._json({"ok": False, "msg": f"목록을 못 받았어요: {e}"})
+
     def _asset(self, rel: str):
         """썸네일 등: 유니티가 알려 준 프리셋 폴더(StreamingAssets/RenderTool) 안의 파일만"""
         state = link.snapshot()["state"]
@@ -199,6 +218,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         n = int(self.headers.get("Content-Length", 0))
+        if self.path == "/api/reference":   # 본문 = 사진 파일 그대로
+            return self._job(lambda report: reference.fit(link, self.rfile.read(n), report), started=True)
         try:
             msg = json.loads(self.rfile.read(n) or b"{}")
         except ValueError:
@@ -206,11 +227,53 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/api/cmd":
             link.send(msg)
             return self._json({"ok": True})
+        if self.path == "/api/lib/get":
+            return self._job(lambda report: fetch(msg, report))
         if self.path == "/api/shutdown":
             self._json({"ok": True})
             threading.Thread(target=server.shutdown, daemon=True).start()
             return
         self._json({"ok": False, "msg": "모르는 주소"}, 404)
+
+
+    def _job(self, work, started=False):
+        """오래 걸리는 일은 따로 돌리고 바로 대답 (진행 상황은 /api/state의 job)"""
+        if link.job_busy:
+            return self._json({"ok": False, "msg": "앞의 일이 아직 진행 중이에요"})
+        link.job_busy = True
+
+        def report(t):
+            link.job = t
+            print("[렌더 콘솔]", t, flush=True)
+
+        def run():
+            try:
+                work(report)
+            except Exception as e:
+                report(f"실패: {e}")
+            finally:
+                link.job_busy = False
+        threading.Thread(target=run, daemon=True).start()
+        self._json({"ok": True})
+
+
+def fetch(msg: dict, report) -> None:
+    """라이브러리에서 받기 → 유니티 다시 읽기 → HDRI면 그 룩을 바로 고름 (재질은 화면이 고른 부위에 입힘)"""
+    state = link.snapshot()["state"]
+    if not state or not state.get("root"):
+        return report("유니티가 연결돼야 받을 수 있어요 (받는 폴더를 유니티가 알려 줌)")
+    root = Path(state["root"])
+    if msg.get("kind") == "hdri":
+        pid = library.fetch_hdri(root, msg.get("id", ""), report)
+        link.send({"cmd": "rescan"})
+        time.sleep(0.5)
+        link.send({"cmd": "look", "id": pid})
+        report(f"HDRI 조명 적용: {pid}")
+    else:
+        pid = library.fetch_material(root, msg.get("id", ""), report)
+        link.send({"cmd": "rescan"})
+        report(f"재질 준비됨: {pid}")
+    link.last_fetched = pid
 
 
 def open_window(url: str) -> None:

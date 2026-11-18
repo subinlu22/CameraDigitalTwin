@@ -71,6 +71,19 @@ body.full .stage{left:14px}
 .main{left:14px;width:336px}
 .bench{left:362px;width:358px;opacity:0;transform:translateX(-14px);pointer-events:none}
 body.bench-open .bench{opacity:1;transform:none;pointer-events:auto}
+.libp{left:362px;width:358px;opacity:0;transform:translateX(-14px);pointer-events:none}
+body.lib-open .libp{opacity:1;transform:none;pointer-events:auto}
+body.lib-open .stage{left:732px}
+/* 실사 라이브러리 · 레퍼런스 색 맞추기 */
+.tabs{display:flex;gap:4px;background:var(--chip);border-radius:10px;padding:3px;margin-bottom:10px}
+.tabs button{flex:1;border:0;background:none;padding:7px;border-radius:8px;font:550 12px var(--font);color:var(--ink-2);cursor:pointer}
+.tabs button.on{background:var(--btn);color:var(--btn-ink)}
+.look.busy{opacity:.55;pointer-events:none}
+.look .have{position:absolute;top:7px;right:7px;z-index:1;font-size:10px;font-weight:650;padding:2px 6px;border-radius:6px;background:rgba(0,0,0,.55);color:#fff}
+.refbox{display:flex;align-items:center;gap:10px;border:1px dashed var(--track);border-radius:12px;padding:10px;cursor:pointer;min-height:62px;font-size:12px;color:var(--ink-2)}
+.refbox:hover,.refbox.drop{border-color:var(--accent);background:var(--accent-soft)}
+.refbox img{width:76px;height:48px;object-fit:cover;border-radius:8px;flex:none}
+.refgo{width:100%;margin-top:8px;flex:none}
 body.full .panel{opacity:0;pointer-events:none;transform:translateX(-14px)}
 
 .head{padding:16px 18px 12px;display:flex;gap:11px;align-items:center}
