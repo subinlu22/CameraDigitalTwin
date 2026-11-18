@@ -1,0 +1,26 @@
+{
+  "id": "ref_steel_table",
+  "displayName": "청회색 브러시드 스텐",
+  "category": "reference",
+  "note": "레퍼런스 검사 셀 · 작업대. 밝은 청회색, 반사가 부드럽게 퍼짐",
+  "recipe": "",
+  "mapping": "uv",
+  "base": {
+    "color": [
+      0.5,
+      0.55,
+      0.61
+    ],
+    "metallic": 0.75,
+    "roughness": 0.36,
+    "normalMap": "textures/detail/detail_brushed.png",
+    "normalStrength": 0.3,
+    "textureScale": 2
+  },
+  "ranges": {
+    "metallic": [],
+    "roughness": [],
+    "normalStrength": []
+  },
+  "matchNames": []
+}

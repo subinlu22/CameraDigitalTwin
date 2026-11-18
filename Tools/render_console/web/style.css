@@ -1,9 +1,20 @@
 /* 렌더 룩 콘솔 — ProductRenderStudio 패널 시안을 바탕으로, 렌더 뷰가 주인공인 "렌더 전용 유니티 창" 느낌
    색은 :root(밝게) / [data-theme=dark](어둡게)만 바꾸면 전체가 바뀜 */
 @font-face{font-family:"SUIT Variable";src:url(fonts/SUIT-Variable.ttf) format("truetype");font-weight:100 900;font-display:swap}
+/* 로봇팔 패널과 같은 글꼴 (콘솔 서버가 Assets/Resources/Fonts에서 줌): 한글 SUIT · 영문 라벨 REATIC · 숫자 Hada Condensed
+   REATIC·Hada는 git에 없음 → 없는 PC에선 SUIT·기본 글꼴로 보임 */
+@font-face{font-family:"SUIT";src:url(/font/SUIT-Regular.otf);font-weight:400;font-display:swap}
+@font-face{font-family:"SUIT";src:url(/font/SUIT-Medium.otf);font-weight:500;font-display:swap}
+@font-face{font-family:"SUIT";src:url(/font/SUIT-SemiBold.otf);font-weight:600;font-display:swap}
+@font-face{font-family:"SUIT";src:url(/font/SUIT-Bold.otf);font-weight:700 900;font-display:swap}
+@font-face{font-family:"REATIC";src:url(/font/REATIC-Regular.otf);font-weight:400 500;font-display:swap;unicode-range:U+0020-007E}
+@font-face{font-family:"REATIC";src:url(/font/REATIC-Bold.otf);font-weight:600 900;font-display:swap;unicode-range:U+0020-007E}
+@font-face{font-family:"Hada";src:url(/font/HadaCondensed-Medium.ttf);font-weight:400 500;font-display:swap;unicode-range:U+0020-0040,U+00B0,U+00D7}
+@font-face{font-family:"Hada";src:url(/font/HadaCondensed-Bold.ttf);font-weight:600 900;font-display:swap;unicode-range:U+0020-0040,U+00B0,U+00D7}
 :root{
-  --font:"SUIT Variable",SUIT,"Pretendard Variable",Pretendard,-apple-system,"Segoe UI Variable","Malgun Gothic",sans-serif;
-  --mono:ui-monospace,"Cascadia Mono",Consolas,monospace;
+  --font:SUIT,"SUIT Variable","Pretendard Variable",Pretendard,-apple-system,"Segoe UI Variable","Malgun Gothic",sans-serif;
+  --display:REATIC,var(--font);
+  --mono:Hada,SUIT,ui-monospace,"Cascadia Mono",Consolas,monospace;
   --bg:#e6e7ea; --stage:#d7d9de; --stage-edge:rgba(20,23,28,.08);
   --glass:rgba(255,255,255,.62); --glass-strong:rgba(255,255,255,.8); --edge:rgba(255,255,255,.75); --edge-in:rgba(255,255,255,.9);
   --ink:#14171c; --ink-2:#555c67; --ink-3:#8a9099; --line:rgba(20,23,28,.08); --hover:rgba(20,23,28,.045);
@@ -173,3 +184,7 @@ body.full .panel{opacity:0;pointer-events:none;transform:translateX(-14px)}
 .mcard .ball{width:48px;height:48px;display:block;margin:0 auto 5px;pointer-events:none}
 .mcard b{display:block;font-size:10.5px;font-weight:600;line-height:1.3;word-break:keep-all}
 .mcard.on{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
+.refrow{display:flex;gap:8px;margin-top:8px}
+/* 제목·영문 라벨 = REATIC (한글은 SUIT로 넘어감) */
+.title,.label,.chip-live,.tabs button{font-family:var(--display)}
+.slider .top em .v,.hud b,.colorrow code{font-size:13px}

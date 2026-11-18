@@ -104,7 +104,7 @@ function slider(parent, [key, label, min, max, step], onInput, getDefault) {
 const lookSl = {};
 LOOK_SLIDERS.forEach(d => {
   lookSl[d[0]] = slider($("lookSliders"), d, () => {
-    const look = {};
+    const look = Object.assign({}, S && S.lookParams);   // 슬라이더에 없는 값(색 맞추기 lift·gamma·gain)은 그대로
     for (const k in lookSl) look[k] = +lookSl[k].querySelector("input").value;
     throttled("look", () => ({ cmd: "look_params", look }));
   }, () => S && S.look && S.lookDefaults ? S.lookDefaults[d[0]] : null);
@@ -404,6 +404,10 @@ $("refGo").onclick = async () => {
   editAt = 0;
   const r = await (await fetch("/api/reference", { method: "POST", body: refFile })).json();
   toast(r.ok ? "색 맞추는 중…" : r.msg);
+};
+$("refUndo").onclick = () => {   // 룩의 원래 세부 값으로 (색 맞추기 전)
+  if (!S || !S.look || !S.lookDefaults) return toast("되돌릴 룩이 없어요");
+  editAt = 0; post({ cmd: "look_params", look: S.lookDefaults }); toast("색 맞추기 되돌림");
 };
 
 // ---------------------------------------------------------------- 받아서 그리기

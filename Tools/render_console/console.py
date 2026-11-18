@@ -38,6 +38,9 @@ CRLF = bytes([13, 10])
 FRAME_PORT = 5072                         # 유니티 → 콘솔 렌더 뷰 (TCP, [길이 4바이트][JPG])
 ALIVE_S = 3.0                              # 이 시간 동안 소식이 없으면 "연결 끊김"
 WEB = Path(__file__).resolve().parent / "web"
+FONT_DIR = Path(__file__).resolve().parents[2] / "Assets" / "Resources" / "Fonts"
+FONTS = {"REATIC-Regular.otf", "REATIC-Bold.otf", "HadaCondensed-Medium.ttf", "HadaCondensed-Bold.ttf",
+         "SUIT-Regular.otf", "SUIT-Medium.otf", "SUIT-SemiBold.otf", "SUIT-Bold.otf"}
 TYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8",
          ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".ico": "image/x-icon", ".ttf": "font/ttf"}
 
@@ -174,6 +177,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._lib(lambda q: library.list_hdris())
         if path == "/api/lib/mat":
             return self._lib(lambda q: library.list_materials(q.get("q", [""])[0], int(q.get("offset", ["0"])[0] or 0)))
+        if path.startswith("/font/"):
+            return self._font(path[len("/font/"):])
         if path.startswith("/assets/"):
             return self._asset(path[len("/assets/"):])
         f = (WEB / ("index.html" if path == "/" else path.lstrip("/"))).resolve()
@@ -204,6 +209,15 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"ok": True, "data": make(q)})
         except Exception as e:   # 인터넷이 없거나 사이트가 바뀜
             return self._json({"ok": False, "msg": f"목록을 못 받았어요: {e}"})
+
+    def _font(self, name: str):
+        """로봇 패널과 같은 글꼴 (Assets/Resources/Fonts, git엔 SUIT만 있음 → 없으면 화면이 SUIT·기본 글꼴로)"""
+        if name not in FONTS:
+            return self._send(404, b"not found", "text/plain")
+        f = FONT_DIR / name
+        if not f.is_file():
+            return self._send(404, b"no font", "text/plain")
+        self._send(200, f.read_bytes(), "font/otf" if f.suffix == ".otf" else "font/ttf")
 
     def _asset(self, rel: str):
         """썸네일 등: 유니티가 알려 준 프리셋 폴더(StreamingAssets/RenderTool) 안의 파일만"""

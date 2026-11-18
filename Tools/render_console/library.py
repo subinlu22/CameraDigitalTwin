@@ -6,7 +6,8 @@
   받기  : HDRI   → hdri/<id>_2k.hdr + looks/lib_hdri_<id>.json (조명은 HDRI만, 후처리 기본)
           재질   → 1K zip을 메모리에서 열어 색·노멀·금속·거칠기 사진만 꺼냄
                    → textures/library/<id>/ + materials/lib_<id>.json
-                   금속·거칠기는 유니티 Standard 셰이더 형식(R = 금속, A = 매끈함) 한 장으로 합침 (Pillow 필요)
+                   거칠기는 색 사진의 A(알파)에 매끈함으로 넣음 → 금속성은 슬라이더로 조절 (Pillow 필요)
+                   금속 맵은 평균값만 재서 금속성 기본값으로 씀
 경로는 모두 유니티가 알려 준 RenderTool 폴더(StreamingAssets/RenderTool) 기준
 """
 import io
@@ -124,14 +125,14 @@ def fetch_material(root: Path, mid: str, report) -> str:
                 for suffix, out in MAPS.items():
                     if member.endswith(suffix):
                         _write(folder / out, z.read(member))
-    base = {"color": [1, 1, 1], "metallic": 0, "roughness": 0.5, "normalStrength": 0, "textureScale": 1,
+    base = {"color": [1, 1, 1], "metallic": 0, "roughness": 0.5, "normalStrength": 1, "textureScale": 1,
             "albedoMap": f"textures/library/{mid}/color.jpg"}
     if (folder / "normal.jpg").exists():
         base["surfaceNormalMap"] = f"textures/library/{mid}/normal.jpg"
-    if (folder / "rough.jpg").exists():
-        packed = _pack_metal_gloss(folder)
-        if packed:
-            base["metalGlossMap"] = f"textures/library/{mid}/{packed}"
+    packed = _pack_color_gloss(folder)
+    if packed:
+        base["albedoMap"], base["albedoAlphaIsGloss"] = f"textures/library/{mid}/{packed}", True
+    base["metallic"] = _mean_metal(folder)
     thumb = f"thumbnails/library/mat_{mid}.png"
     pv = (a.get("previewImage") or {}).get("256-PNG")
     if pv and not (root / thumb).exists():
@@ -144,16 +145,24 @@ def fetch_material(root: Path, mid: str, report) -> str:
     return mat_id
 
 
-def _pack_metal_gloss(folder: Path):
-    """금속(R) + 매끈함(A = 1 − 거칠기) 한 장. Pillow가 없으면 건너뜀 (그러면 거칠기 슬라이더 값만 씀)"""
+def _pack_color_gloss(folder: Path):
+    """색(RGB) + 매끈함(A = 1 − 거칠기) 한 장. Pillow가 없거나 거칠기 맵이 없으면 None (그러면 거칠기 슬라이더 값만 씀)"""
     try:
         from PIL import Image, ImageChops
     except ImportError:
         return None
-    rough = Image.open(folder / "rough.jpg").convert("L")
-    gloss = ImageChops.invert(rough)
-    metal = Image.open(folder / "metal.jpg").convert("L").resize(rough.size) if (folder / "metal.jpg").exists() \
-        else Image.new("L", rough.size, 0)
-    zero = Image.new("L", rough.size, 0)
-    Image.merge("RGBA", (metal, zero, zero, gloss)).save(folder / "metalgloss.png")
-    return "metalgloss.png"
+    if not (folder / "rough.jpg").exists():
+        return None
+    color = Image.open(folder / "color.jpg").convert("RGB")
+    gloss = ImageChops.invert(Image.open(folder / "rough.jpg").convert("L").resize(color.size))
+    color.putalpha(gloss)
+    color.save(folder / "color_gloss.png")
+    return "color_gloss.png"
+
+
+def _mean_metal(folder: Path) -> float:
+    try:
+        from PIL import Image, ImageStat
+        return round(ImageStat.Stat(Image.open(folder / "metal.jpg").convert("L")).mean[0] / 255, 2)
+    except Exception:   # 금속 맵 없음 = 금속 아님
+        return 0.0

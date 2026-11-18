@@ -1,0 +1,26 @@
+{
+  "id": "ref_aluminum_light",
+  "displayName": "밝은 헤어라인 알루미늄",
+  "category": "reference",
+  "note": "레퍼런스 검사 셀 · 벨트 프레임·봉. 밝은 은색, 결이 살짝 보임",
+  "recipe": "",
+  "mapping": "uv",
+  "base": {
+    "color": [
+      0.82,
+      0.84,
+      0.87
+    ],
+    "metallic": 0.85,
+    "roughness": 0.3,
+    "normalMap": "textures/detail/detail_brushed.png",
+    "normalStrength": 0.35,
+    "textureScale": 1.5
+  },
+  "ranges": {
+    "metallic": [],
+    "roughness": [],
+    "normalStrength": []
+  },
+  "matchNames": []
+}

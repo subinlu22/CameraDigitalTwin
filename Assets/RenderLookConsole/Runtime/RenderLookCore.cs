@@ -37,7 +37,9 @@ namespace RenderLook
     public class LookParams
     {
         public float ambient = 1f, reflection = 1f, sceneLight = 1f, exposure, contrast, saturation, bloom;
-        public float temperature, tint;    // 색온도(+ 따뜻하게) · 색조(+ 자홍, − 초록). 레퍼런스 색 맞추기가 주로 씀
+        public float temperature, tint;    // 색온도(+ 따뜻하게) · 색조(+ 자홍, − 초록)
+        // 어두운 곳(lift)·중간(gamma)·밝은 곳(gain) 색: RGB + 밝기(w). 기본 (1,1,1,0). 레퍼런스 색 맞추기가 씀
+        public float[] lift = { 1, 1, 1, 0 }, gamma = { 1, 1, 1, 0 }, gain = { 1, 1, 1, 0 };
     }
 
     public class Part
@@ -55,6 +57,7 @@ namespace RenderLook
     {
         const string RigPrefix = "_RenderLookRig";
         const float WatchEvery = 0.5f;
+        const float AeLow = 50f, AeHigh = 95f, AeRange = 4f;   // 기준 밝기(자동 노출): 볼 밝기 구간(%) · 최대 보정(EV)
 
         public static RenderLookCore Instance { get; private set; }
         public event Action Changed;       // 상태가 바뀌면 (콘솔에 다시 보냄)
@@ -286,13 +289,22 @@ namespace RenderLook
             var metalGloss = RenderLookFiles.LoadImage(b.metalGlossMap, true);
             if (!albedo && !normal && !metalGloss) return;
             var tile = Vector2.one * Mathf.Max(0.05f, s.tiling);
+            float glossScale = Mathf.Clamp01((1f - Mathf.Clamp01(s.roughness)) * 2f);
             if (albedo) { m.SetTexture("_MainTex", albedo); m.SetTextureScale("_MainTex", tile); }
-            if (normal) { m.SetTexture("_BumpMap", normal); m.SetFloat("_BumpScale", 1f); m.EnableKeyword("_NORMALMAP"); }
+            if (albedo && b.albedoAlphaIsGloss)
+            {
+                // 매끈함 = 색 사진 A × 배율, 금속 = 금속성 슬라이더 (Standard 셰이더 '알베도 알파' 방식)
+                m.SetFloat("_SmoothnessTextureChannel", 1);
+                m.EnableKeyword("_SMOOTHNESS_TEXTURE_ALBEDO_CHANNEL_A");
+                m.SetFloat("_GlossMapScale", glossScale);
+            }
+            // 결 세기 = 표면 노멀 세기 (스캔 재질엔 디테일 결이 없어서)
+            if (normal) { m.SetTexture("_BumpMap", normal); m.SetFloat("_BumpScale", s.normalStrength); m.EnableKeyword("_NORMALMAP"); }
             if (metalGloss)
             {
                 m.SetTexture("_MetallicGlossMap", metalGloss);
                 m.EnableKeyword("_METALLICGLOSSMAP");
-                m.SetFloat("_GlossMapScale", Mathf.Clamp01((1f - Mathf.Clamp01(s.roughness)) * 2f));
+                m.SetFloat("_GlossMapScale", glossScale);
             }
         }
 
@@ -326,7 +338,26 @@ namespace RenderLook
             Params = ParamsFrom(look);
             BuildLook(look);
             ApplyParams();
+            ApplyRecipe(look);
             Notify("조명 분위기: " + look.displayName);
+        }
+
+        // 레시피 룩: 부위마다 재질을 같이 입힘 (값을 -1로 둔 칸은 재질 프리셋 값)
+        void ApplyRecipe(LookPresetData l)
+        {
+            if (l.parts == null) return;
+            foreach (var r in l.parts)
+            {
+                if (string.IsNullOrEmpty(r.part) || FindMaterial(r.material) == null || Parts.Find(p => p.id == r.part) == null) continue;
+                var st = new PartState { id = r.part, mode = string.IsNullOrEmpty(r.mode) ? "replace" : r.mode, preset = r.material };
+                SetPart(st, true);   // 프리셋 값으로 채운 뒤
+                if (r.metallic >= 0) st.metallic = r.metallic;
+                if (r.roughness >= 0) st.roughness = r.roughness;
+                if (r.normalStrength >= 0) st.normalStrength = r.normalStrength;
+                if (r.tiling > 0) st.tiling = r.tiling;
+                if (r.color != null && r.color.Length >= 3) st.color = (float[])r.color.Clone();
+                SetPart(st, false);  // 레시피 값으로 덮음
+            }
         }
 
         public void SetParams(LookParams p)
@@ -345,9 +376,13 @@ namespace RenderLook
             {
                 ambient = env.ambientIntensity, reflection = env.reflectionIntensity, sceneLight = l.sceneLightScale,
                 exposure = g.postExposure, contrast = g.contrast, saturation = g.saturation, temperature = g.temperature, tint = g.tint,
+                lift = Tone(g.lift), gamma = Tone(g.gamma), gain = Tone(g.gain),
                 bloom = l.post?.bloom != null && l.post.bloom.enabled ? l.post.bloom.intensity : 0f,
             };
         }
+
+        static float[] Tone(float[] v) => v != null && v.Length == 4 ? (float[])v.Clone() : new float[] { 1, 1, 1, 0 };
+        static Vector4 V4(float[] v) { v = Tone(v); return new Vector4(v[0], v[1], v[2], v[3]); }
 
         Bounds FocusBounds()
         {
@@ -463,6 +498,15 @@ namespace RenderLook
 
             // 6) 후처리: 우선순위 높은 전역 볼륨 (장면 볼륨 위에 덮어씀)
             profile = BuildPost(l.post ?? new LookPost());
+            if (l.post != null && l.post.depthOfField && cam)
+            {
+                // 배경 흐림: 초점 = 카메라에서 초점 물체까지 거리, 조리개·렌즈는 룩의 camera 값 (작은 조리개 수 = 더 흐림)
+                var dof = profile.AddSettings<DepthOfField>(); dof.enabled.Override(true);
+                dof.focusDistance.Override(Mathf.Max(0.1f, Vector3.Distance(cam.transform.position, c)));
+                dof.aperture.Override(Mathf.Clamp(l.camera != null ? l.camera.aperture : 2.8f, 0.5f, 32f));
+                dof.focalLength.Override(Mathf.Clamp(l.camera != null ? l.camera.focalLength : 50f, 10f, 300f));
+                dof.kernelSize.Override(KernelSize.Medium);
+            }
             grading = profile.GetSetting<ColorGrading>();
             bloomFx = profile.GetSetting<Bloom>();
             var vgo = new GameObject("PostVolume") { layer = 0 };
@@ -495,6 +539,7 @@ namespace RenderLook
             {
                 grading.postExposure.Override(p.exposure); grading.contrast.Override(p.contrast); grading.saturation.Override(p.saturation);
                 grading.temperature.Override(p.temperature); grading.tint.Override(p.tint);
+                grading.lift.Override(V4(p.lift)); grading.gamma.Override(V4(p.gamma)); grading.gain.Override(V4(p.gain));
             }
             if (bloomFx) { bloomFx.enabled.Override(p.bloom > 0f); bloomFx.intensity.Override(p.bloom); }
         }
@@ -531,6 +576,16 @@ namespace RenderLook
                 ao.mode.Override(AmbientOcclusionMode.MultiScaleVolumetricObscurance);
                 ao.intensity.Override(p.ambientOcclusion.intensity); ao.thicknessModifier.Override(p.ambientOcclusion.thickness);
                 ao.color.Override(RenderLookFiles.ToColor(p.ambientOcclusion.color));
+            }
+            if (p.autoExposure)
+            {
+                // 기준 밝기: 밝기 분포 50~95% 구간의 평균을 18% 회색(keyValue 1)에 맞춤 → 룩마다 하얗게 뜨거나 칙칙해지지 않음
+                var ae = prof.AddSettings<AutoExposure>(); ae.enabled.Override(true);
+                ae.filtering.Override(new Vector2(AeLow, AeHigh));
+                ae.minLuminance.Override(-AeRange); ae.maxLuminance.Override(AeRange);
+                ae.keyValue.Override(1f);
+                ae.eyeAdaptation.Override(EyeAdaptation.Progressive);
+                ae.speedUp.Override(3f); ae.speedDown.Override(2f);
             }
             var g = p.colorGrading ?? new LookColorGrading();
             var cg = prof.AddSettings<ColorGrading>(); cg.enabled.Override(true);
@@ -578,6 +633,7 @@ namespace RenderLook
                     color = (float[])s.color.Clone(), metallic = s.metallic, roughness = s.roughness,
                     normalMap = src?.@base.normalMap, normalStrength = s.normalStrength, textureScale = s.tiling,
                     albedoMap = src?.@base.albedoMap, surfaceNormalMap = src?.@base.surfaceNormalMap, metalGlossMap = src?.@base.metalGlossMap,
+                    albedoAlphaIsGloss = src != null && src.@base.albedoAlphaIsGloss,
                 },
             };
             data.ranges = new MaterialRanges();   // 내가 고른 값이 범위에 잘리지 않게 (범위는 비움 = 제한 없음)
@@ -602,6 +658,7 @@ namespace RenderLook
             data.post.colorGrading.postExposure = p.exposure; data.post.colorGrading.contrast = p.contrast;
             data.post.colorGrading.saturation = p.saturation;
             data.post.colorGrading.temperature = p.temperature; data.post.colorGrading.tint = p.tint;
+            data.post.colorGrading.lift = Tone(p.lift); data.post.colorGrading.gamma = Tone(p.gamma); data.post.colorGrading.gain = Tone(p.gain);
             data.post.bloom.enabled = p.bloom > 0f; data.post.bloom.intensity = p.bloom;
             string id = RenderLookFiles.Save("looks", look.id + "_custom", fid => { data.id = fid; return JsonUtility.ToJson(data, true); });
             Looks = RenderLookFiles.LoadLooks();

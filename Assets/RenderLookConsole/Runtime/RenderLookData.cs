@@ -39,7 +39,8 @@ namespace RenderLook
         // 실사 스캔 재질 (콘솔 [실사 라이브러리]로 받은 것, 없으면 비움). 경로는 RenderTool 폴더 기준
         public string albedoMap;          // 색 사진
         public string surfaceNormalMap;   // 표면 노멀 (디테일 노멀 normalMap과 따로)
-        public string metalGlossMap;      // R = 금속, A = 매끈함 (콘솔이 금속·거칠기 맵을 합쳐 만듦)
+        public string metalGlossMap;      // R = 금속, A = 매끈함 (예전 형식. 있으면 금속성 슬라이더가 안 먹음)
+        public bool albedoAlphaIsGloss;   // 색 사진의 A = 매끈함 (콘솔이 거칠기 맵을 넣음) → 금속성은 슬라이더 값
     }
 
     [Serializable]
@@ -66,7 +67,8 @@ namespace RenderLook
         public LookSoftbox[] softboxes = new LookSoftbox[0];
         public LookProbe reflectionProbe = new LookProbe();
         public LookPost post = new LookPost();
-        public LookCamera camera = new LookCamera();   // 렌더툴 촬영용 (콘솔은 안 씀, 저장할 때 형식 맞추려고 둠)
+        public LookCamera camera = new LookCamera();   // 렌더툴 촬영용. 콘솔은 배경 흐림(depthOfField)의 초점 거리·조리개로 씀
+        public PartRecipe[] parts = new PartRecipe[0]; // 레시피: 이 룩을 고르면 부위마다 재질도 같이 입힘 (레퍼런스 한 장 = 룩 하나)
         public string thumbnail;
     }
 
@@ -124,14 +126,25 @@ namespace RenderLook
         public bool depthOfField;
         public bool grain;
         public string antialiasing = "smaa";
+        public bool autoExposure = true;   // 기준 밝기: 화면 중간 밝기를 늘 같은 기준에 맞춤 (노출 슬라이더 = 기준에서 ±)
     }
 
     [Serializable] public class LookAO { public bool enabled; public float intensity = 1f; public float thickness = 1f; public float[] color = { 0, 0, 0 }; }
-    [Serializable] public class LookColorGrading { public string tonemapper = "aces"; public float postExposure; public float contrast; public float saturation; public float temperature; public float tint; }
+    [Serializable] public class LookColorGrading { public string tonemapper = "aces"; public float postExposure; public float contrast; public float saturation; public float temperature; public float tint;
+        public float[] lift, gamma, gain; }   // 어두운 곳·중간·밝은 곳 색 (RGB + 밝기). 비우면 기본 (1,1,1,0)
     [Serializable] public class LookBloom { public bool enabled; public float threshold = 1f; public float intensity; public float softKnee = 0.5f; }
     [Serializable] public class LookVignette { public bool enabled; public float intensity; public float smoothness = 0.2f; }
     [Serializable] public class LookCamera { public float focalLength = 50f; public float aperture = 32f; public LookAngle[] angles = { new LookAngle() }; }
     [Serializable] public class LookAngle { public string name = "front"; public float[] direction = { 0, 0.3f, 1 }; public float distance = 1.2f; }
+
+    // 레시피 한 줄: 부위 id + 재질 프리셋 + 값 (값을 비우면 프리셋 값)
+    [Serializable]
+    public class PartRecipe
+    {
+        public string part, material, mode = "replace";
+        public float metallic = -1, roughness = -1, normalStrength = -1, tiling = -1;
+        public float[] color;
+    }
 
     // ---------------------------------------------------------------- 부위 이름표 (선택)
     // 없어도 됨: 그러면 장면에 쓰인 재질 이름이 그대로 부위가 됨
