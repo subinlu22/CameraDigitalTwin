@@ -28,6 +28,9 @@ public class DashboardGlassBlur : MonoBehaviour
     void OnEnable()
     {
         cam = GetComponent<Camera>();
+        // 빌드 exe에서는 흐린 화면이 밝은 회색 한 덩어리로 나와 패널이 하얗게 뜸(11/19, 원인 확인 못 함)
+        // → exe에서는 흐림을 끄고 패널이 "흐림 없는 어두운 반투명" 색을 쓰게 함 (에디터는 그대로 흐림)
+        if (!Application.isEditor) { enabled = false; return; }
         // Resources 폴더에 둬서 빌드 exe에도 셰이더가 들어감
         Shader shader = Resources.Load<Shader>("Shaders/GlassBlur");
         if (shader == null) { Debug.LogWarning("[대시보드] 유리 흐림 셰이더가 없음 → 흐림 없이 반투명만"); enabled = false; return; }
