@@ -49,14 +49,9 @@
 | | |
 |---|---|
 | ![컨베이어 장면](docs/images/hq/scene_main.jpg) | ![뚜껑 집기 + 패널](docs/images/hq/pick_ui.jpg) |
-| 검사 카메라·링라이트·컨베이어·로봇팔 | 뚜껑 집기 자세와 패널 관절 값 |
+| 검사 카메라·링라이트·컨베이어·로봇팔 (실물 팔로워 팔과 같은 흰색) | 뚜껑 집기 자세와 패널 관절 값 |
 | ![집게 가까이](docs/images/hq/pick_close.jpg) | ![컨베이어에 올리기](docs/images/hq/place_on_belt.jpg) |
 | 집게가 뚜껑을 잡는 장면 | 집은 뚜껑을 컨베이어에 올리는 장면 |
-
-<p align="center">
-  <img src="docs/images/hq/thumb_ui_white.jpg" alt="흰색 로봇팔 버전" width="720"><br>
-  <sub>실물 팔로워 팔(흰색)에 맞춘 색 버전</sub>
-</p>
 
 ## 할 수 있는 것
 
