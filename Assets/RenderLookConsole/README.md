@@ -29,7 +29,7 @@
 | 재질 작업대 | 원본 / 전부 바꾸기 / 텍스처 유지 → 기본 재질 카드(끌어놓기) → 색·금속성·거칠기·결 세기·결 크기 (파란 띠 = 권장 범위) |
 | 버튼 | 슬라이더마다 ↺ = 그 값만 프리셋 기본값으로 · 원래대로 / 룩 저장 / 원본으로 / 내 재질로 저장 · 밝은·어두운 테마 |
 
-플레이 화면에서 바로 고르는 작은 창도 있음: **F6** (빌드 exe에서 콘솔 없이 쓸 때).
+플레이 화면 아래 가운데 [렌더 룩 콘솔] 버튼 또는 **F6** → 콘솔 창을 띄움 (빌드 exe에서도, 프로젝트의 `Tools/render_console`을 찾아 실행).
 
 ## 프리셋 파일 (`StreamingAssets/RenderTool/`)
 
@@ -63,7 +63,7 @@
 | `Runtime/RenderLookCore.cs` | 본체: 부위 찾기, 룩·재질 적용·원복, 저장, 다른 스크립트가 덮으면 다시 입힘 |
 | `Runtime/RenderLookLink.cs` | 콘솔과 UDP로 주고받기 (받기는 별도 스레드 → 메인 스레드에서 적용) |
 | `Runtime/RenderLookStream.cs` | 렌더 뷰 보내기 (카메라 한 장 더 그림 → GPU 비동기 읽기 → JPG → TCP) + 룩 썸네일 자동 저장 |
-| `Runtime/RenderLookPanel.cs` | F6 간단 창 |
+| `Runtime/RenderLookPanel.cs` | 화면 아래 콘솔 띄우기 버튼 (F6) |
 | `Runtime/RenderLookData.cs` · `RenderLookFiles.cs` | 프리셋 JSON 형식 · 파일·이미지·HDRI 읽기 |
 | `Tools/render_console/` | 콘솔 (파이썬 서버 + 웹 화면) |
 
