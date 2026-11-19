@@ -110,7 +110,7 @@ public static class FactoryMaterialConverter
             mat.SetFloat("_Metallic", 0f);
             mat.SetFloat("_Glossiness", 0.2f);
         }
-        // 바닥: 에폭시 코팅 느낌 (수빈이 고른 어두운 회색 + 은은한 광)
+        // 바닥: 에폭시 코팅 느낌 (고른 어두운 회색 + 은은한 광)
         if (mat.name == "Floor")
         {
             mat.SetColor("_Color", new Color(0.22f, 0.22f, 0.22f));
