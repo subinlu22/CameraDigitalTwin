@@ -11580,6 +11580,7 @@ MonoBehaviour:
   forceLimit: 1000
   interpolate: 1
   maxGapSec: 0.1
+  approachSpeedDps: 30
   frozenStepRatio: 0
   maxStepDeg: 0
   avgLagDeg: 0
@@ -11673,6 +11674,13 @@ MonoBehaviour:
   cmdPort: 5061
   statusPort: 5062
   okDiffDeg: 2
+  restPoseDeg:
+  - 0
+  - -107.6
+  - 87.2
+  - 71.1
+  - 0
+  - 0
 --- !u!1001 &997484661
 PrefabInstance:
   m_ObjectHideFlags: 0
