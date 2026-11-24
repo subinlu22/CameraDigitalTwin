@@ -11,7 +11,7 @@ const JOINTS = ['shoulder_pan', 'shoulder_lift', 'elbow_flex', 'wrist_flex', 'wr
 const MAT = {
   body: new THREE.MeshPhysicalMaterial({ color: 0xeef3fb, roughness: 0.42, metalness: 0.05, clearcoat: 0.35, clearcoatRoughness: 0.4 }),
   motor: new THREE.MeshStandardMaterial({ color: 0x1b2537, roughness: 0.5, metalness: 0.3 }),
-  ghost: new THREE.MeshBasicMaterial({ color: 0x49d3ff, transparent: true, opacity: 0.16, depthWrite: false }),
+  ghost: new THREE.MeshBasicMaterial({ color: 0x5fd4e8, transparent: true, opacity: 0.16, depthWrite: false }),
 };
 
 // STL은 한 번만 받아서 두 로봇(흰 팔·리더)이 같이 씀
@@ -72,22 +72,22 @@ export async function createViewer(container) {
   controls.minDistance = 0.3; controls.maxDistance = 3;
   controls.maxPolarAngle = Math.PI * 0.49;
 
-  // 조명: 하늘·바닥 + 주광(그림자) + 파란 테두리광
-  scene.add(new THREE.HemisphereLight(0xcfe3ff, 0x0b1220, 1.1));
+  // 조명: 하늘·바닥 + 주광(그림자) + 청록 테두리광
+  scene.add(new THREE.HemisphereLight(0xdde8ee, 0x0a0e13, 1.1));
   const key = new THREE.DirectionalLight(0xffffff, 2.2);
   key.position.set(0.6, 1.2, 0.8); key.castShadow = true;
   key.shadow.mapSize.set(2048, 2048);
   Object.assign(key.shadow.camera, { left: -0.6, right: 0.6, top: 0.6, bottom: -0.6, near: 0.1, far: 3 });
   scene.add(key);
-  const rim = new THREE.DirectionalLight(0x49d3ff, 1.6);
+  const rim = new THREE.DirectionalLight(0x5fd4e8, 1.4);
   rim.position.set(-0.8, 0.5, -0.9); scene.add(rim);
 
-  // 바닥: 그림자 받는 판 + 파란 격자 + 빛 원
+  // 바닥: 그림자 받는 판 + 청록 격자 + 빛 원
   const floor = new THREE.Mesh(new THREE.CircleGeometry(1.4, 64), new THREE.ShadowMaterial({ opacity: 0.35 }));
   floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
-  const grid = new THREE.GridHelper(2.4, 48, 0x2f8cff, 0x2f8cff);
+  const grid = new THREE.GridHelper(2.4, 48, 0x5fd4e8, 0x5fd4e8);
   grid.material.transparent = true; grid.material.opacity = 0.09; scene.add(grid);
-  const glow = new THREE.Mesh(new THREE.CircleGeometry(0.42, 64), new THREE.MeshBasicMaterial({ color: 0x2f8cff, transparent: true, opacity: 0.08, depthWrite: false }));
+  const glow = new THREE.Mesh(new THREE.CircleGeometry(0.42, 64), new THREE.MeshBasicMaterial({ color: 0x5fd4e8, transparent: true, opacity: 0.06, depthWrite: false }));
   glow.rotation.x = -Math.PI / 2; glow.position.y = 0.001; scene.add(glow);
 
   // 로봇 두 대 (URDF는 Z가 위 → Y가 위로 돌림)

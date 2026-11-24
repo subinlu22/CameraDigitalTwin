@@ -36,10 +36,15 @@ from core.servo_bus import list_ports
 WEB = Path(__file__).resolve().parent / "web"
 # 3D 화면용: 유니티와 같은 URDF·STL 메시를 복사하지 않고 그대로 보냄 (/urdf/...)
 URDF_DIR = Path(__file__).resolve().parents[2] / "Assets" / "URDF" / "SO101"
+# 유니티 패널과 같은 글꼴 (렌더 룩 콘솔과 같은 방식). git엔 SUIT만 있음 → 없는 PC에선 web/fonts의 SUIT로 보임
+FONT_DIR = Path(__file__).resolve().parents[2] / "Assets" / "Resources" / "Fonts"
+FONTS = {"REATIC-Regular.otf", "REATIC-Bold.otf", "HadaCondensed-Medium.ttf", "HadaCondensed-Bold.ttf",
+         "SUIT-Regular.otf", "SUIT-Medium.otf", "SUIT-SemiBold.otf", "SUIT-Bold.otf"}
 HOST, PORT = "127.0.0.1", 8765
 TYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8",
          ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml",
-         ".urdf": "application/xml; charset=utf-8", ".stl": "model/stl"}
+         ".urdf": "application/xml; charset=utf-8", ".stl": "model/stl",
+         ".ttf": "font/ttf", ".otf": "font/otf", ".ico": "image/x-icon"}
 
 bridge: Bridge | None = None
 server: ThreadingHTTPServer | None = None
@@ -72,6 +77,13 @@ class Handler(BaseHTTPRequestHandler):
                         "watchdog_s": bridge.cfg.get("watchdog_s"),
                         "angles_out": bridge.cfg["udp"]["angles_out"],
                         "ports": [{"port": p, "desc": d} for p, d in list_ports()]})
+        elif path.startswith("/font/"):
+            name = path[len("/font/"):]
+            f = FONT_DIR / name
+            if name in FONTS and f.is_file():
+                self._send(200, f.read_bytes(), TYPES[f.suffix])
+            else:
+                self._send(404, b"no font", "text/plain")
         else:
             base = URDF_DIR if path.startswith("/urdf/") else WEB
             rel = path[len("/urdf/"):] if base is URDF_DIR else ("index.html" if path == "/" else path.lstrip("/"))

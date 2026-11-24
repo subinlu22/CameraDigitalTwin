@@ -225,12 +225,12 @@ function buildGauges() {
       <span class="flag hidden">범위 밖</span>
       <svg viewBox="0 0 140 92">
         <defs><linearGradient id="gg${i}" x1="0" x2="1"><stop offset="0" stop-color="var(--accent)"/><stop offset="1" stop-color="var(--accent-2)"/></linearGradient></defs>
-        <path d="${arc(G.a0, G.a1)}" stroke="#1b2740" stroke-width="9" fill="none" stroke-linecap="round"/>
-        <path class="safe" stroke="rgba(47,140,255,.28)" stroke-width="9" fill="none"/>
-        <path class="val" stroke="url(#gg${i})" stroke-width="5" fill="none" stroke-linecap="round" style="filter:drop-shadow(0 0 4px rgba(73,211,255,.6))"/>
-        <path class="lead" fill="#dfe6f5"/>
-        <text class="num" x="70" y="64" text-anchor="middle" fill="#e9f0ff" font-size="20" font-weight="700">—</text>
-        <text x="70" y="80" text-anchor="middle" fill="#7f8ca8" font-size="9">리더 °</text>
+        <path d="${arc(G.a0, G.a1)}" stroke="rgba(255,255,255,.1)" stroke-width="9" fill="none" stroke-linecap="butt"/>
+        <path class="safe" stroke="rgba(95,212,232,.3)" stroke-width="9" fill="none"/>
+        <path class="val" stroke="url(#gg${i})" stroke-width="5" fill="none" stroke-linecap="butt" style="filter:drop-shadow(0 0 4px rgba(95,212,232,.55))"/>
+        <path class="lead" fill="#d3dae1"/>
+        <text class="num" x="70" y="64" text-anchor="middle" fill="#f2f5f8" font-size="22" font-weight="700">—</text>
+        <text x="70" y="80" text-anchor="middle" fill="#aab5c1" font-size="9">리더 °</text>
       </svg>
       <div class="name">${j.ko}</div>
       <div class="sub">흰 팔 <b class="fv">—</b>° · <span class="tk">—</span></div>
