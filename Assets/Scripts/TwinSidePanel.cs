@@ -28,7 +28,8 @@ public partial class TwinSidePanel : MonoBehaviour   // 로봇 [자세] 탭은 T
     static readonly Color CardFill = new Color(1, 1, 1, .035f);
     static readonly Color ActiveFill = new Color(.37f, .83f, .91f, .12f);
     static readonly Color AccentEdge = new Color(.37f, .83f, .91f, .55f);
-    static readonly Color AccentInk = Hex(0x04161B);                    // 청록 버튼 위 글자
+    const float PrimaryThicken = 0.5f;                                   // 청록 버튼 글자 굵기 더하기(px)
+    static readonly Color PrimaryInk = Hex(0x103E48);                   // 청록 버튼 글자: 까만색보다 부드러운 짙은 청록
     static readonly Color Tint = new Color(.04f, .055f, .075f, .62f);   // 유리: 뒤가 은은하게 비침
     static readonly Color TintNoBlur = new Color(.04f, .055f, .075f, .9f);
     static readonly string[] Colors = { "white", "blue", "red" };
@@ -767,7 +768,11 @@ public partial class TwinSidePanel : MonoBehaviour   // 로봇 [자세] 탭은 T
         }
         float half = (detailContent - 8) / 2;
         primary = MakeButton(robotPage, "ControlMode", "유니티로 조종", Blue, Blue, OnPrimary, out primaryText, out primaryFill);
-        primaryText.color = AccentInk;   // 청록 버튼 위는 어두운 글자
+        primaryText.color = PrimaryInk;  // 청록 버튼 위는 어두운 글자
+        primaryText.font = bold;         // 밝은 바탕 위 어두운 글자는 얇으면 흐려 보여서 굵게
+        var thicken = primaryText.gameObject.AddComponent<Outline>();   // 같은 색 테두리로 한 겹 더 → 옆 버튼 흰 글자만큼 굵게
+        thicken.effectColor = PrimaryInk;
+        thicken.effectDistance = new Vector2(PrimaryThicken, PrimaryThicken);
         Place(primary.GetComponent<RectTransform>(), Inset, 780 + RobotTabH, half, 46);
         secondary = MakeButton(robotPage, "StopOrFollow", "리더로 돌아가기", CardFill, Border, OnSecondary, out secondaryText, out _);
         Place(secondary.GetComponent<RectTransform>(), Inset + half + 8, 780 + RobotTabH, half, 46);
