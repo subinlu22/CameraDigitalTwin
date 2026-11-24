@@ -390,26 +390,20 @@ class Bridge:
         t_next = time.perf_counter()
         t_status = 0.0
         while self.running:
-            with self.lock:
-                lt = self._read("leader")
-                ld = self.view["leader"]["deg"]
-                if lt is not None and self.calib["leader"].ready and all(d is not None for d in ld):
-                    if self.mirror:
-                        self.seq += 1
-                        self.angles_out.send({"type": "so101_leader", "seq": self.seq, "t": round(time.time(), 3),
-                                              "deg": [round(self.safety.clamp_for_unity(i, d), 2) for i, d in enumerate(ld)]})
-                        self.sent += 1
-                    self.sources["leader"].put(ld)   # 흰 팔에는 자르기 전 각도
-                self._read("follower")
+            try:
+                self._tick(period)
+            except Exception as e:                        # 한 바퀴에서 무슨 오류가 나도 루프는 안 죽음 (죽으면 화면만 "연동 중"으로 남음)
                 if self.follow:
-                    self._follow_step(period)
+                    self.follow, self.motion, self.motion_name = False, [], None
+                    self._err(f"루프 오류 → 연동 정지: {e}")
+                else:
+                    self._err(f"루프 오류: {e}")
             now = time.perf_counter()
-            for v in self.view.values():               # 1초마다 Hz 계산
-                if now - v["t0"] >= 1.0:
-                    v["hz"] = v["n"] / (now - v["t0"])
-                    v["n"], v["t0"] = 0, now
             if now - t_status >= 1.0 / float(self.cfg.get("status_hz", 5)):
-                self.status_out.send(self.status())
+                try:
+                    self.status_out.send(self.status())
+                except Exception:
+                    pass
                 t_status = now
             t_next += period
             wait = t_next - time.perf_counter()
@@ -417,6 +411,27 @@ class Bridge:
                 time.sleep(wait)
             else:
                 t_next = time.perf_counter()
+
+    def _tick(self, period: float) -> None:
+        """루프 한 바퀴: 읽기 → 미러링 → (연동 중) 흰 팔 한 칸 → Hz 계산"""
+        with self.lock:
+            lt = self._read("leader")
+            ld = self.view["leader"]["deg"]
+            if lt is not None and self.calib["leader"].ready and all(d is not None for d in ld):
+                if self.mirror:
+                    self.seq += 1
+                    self.angles_out.send({"type": "so101_leader", "seq": self.seq, "t": round(time.time(), 3),
+                                          "deg": [round(self.safety.clamp_for_unity(i, d), 2) for i, d in enumerate(ld)]})
+                    self.sent += 1
+                self.sources["leader"].put(ld)   # 흰 팔에는 자르기 전 각도
+            self._read("follower")
+            if self.follow:
+                self._follow_step(period)
+        now = time.perf_counter()
+        for v in self.view.values():               # 1초마다 Hz 계산
+            if now - v["t0"] >= 1.0:
+                v["hz"] = v["n"] / (now - v["t0"])
+                v["n"], v["t0"] = 0, now
 
     def _follow_step(self, period: float) -> None:
         ids = self._follow_ids()
@@ -460,7 +475,12 @@ class Bridge:
                 self.belt_block = None
         if not self.dry_run:
             fc = self.calib["follower"]
-            self.bus["follower"].write_goal(ids, [fc.tick(sid - 1, self.cmd[sid - 1]) for sid in ids])
+            try:
+                self.bus["follower"].write_goal(ids, [fc.tick(sid - 1, self.cmd[sid - 1]) for sid in ids])
+            except Exception as e:                        # USB 빠짐 등 → 연동 멈추고 연결 해제 (루프는 계속 돎)
+                self.follow, self.motion, self.motion_name = False, [], None
+                self._err(f"흰 팔 쓰기 실패 → 연동 정지·연결 해제: {e}")
+                self.disconnect("follower")
 
     # ------------------------------------------------------------------ 상태·명령
     def status(self) -> dict:

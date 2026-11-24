@@ -226,6 +226,36 @@ class BridgeTest(unittest.TestCase):
         self.b.set_source("off")
         self.assertFalse(self.b.start_follow(dry_run=True)["ok"])
 
+    # ---- 5-1. USB 빠짐 (흰 팔 쓰기 오류)
+    def test_write_error_stops_follow_and_disconnects(self):
+        self.plug(leader_deg=(0, 0, 0, 0, 0, 0))
+        self.leader_says([0, 0, 0, 0, 0, 0])
+        self.b.start_follow(dry_run=False)
+        def broken(*a):
+            raise OSError("USB 빠짐")
+        self.fbus.write_goal = broken
+        self.b._follow_step(PERIOD)
+        self.assertFalse(self.b.follow)
+        self.assertIsNone(self.b.bus["follower"])
+        self.assertIn("쓰기 실패", self.b.last_error)
+
+    def test_loop_survives_errors(self):
+        """30Hz 루프 한 바퀴에서 오류가 나도 루프 스레드는 살아 있고, 연동은 멈춤"""
+        b = Bridge(self.b.config_path, enable_udp_in=False)
+        try:
+            b.bus["follower"] = FakeBus("FAKE_F", [self.fc.tick(i, 0) for i in range(6)])
+            b.follow = True
+            def boom(period):
+                raise RuntimeError("테스트 오류")
+            b._follow_step = boom
+            time.sleep(0.3)
+            self.assertTrue(b.thread.is_alive())
+            self.assertFalse(b.follow)
+            self.assertIn("루프 오류", b.last_error)
+        finally:
+            b.running = False
+            b.thread.join(timeout=2)
+
     # ---- 6. 자동 자세: 어깨 먼저 돌리기
     def test_goto_rest_turns_shoulder_first(self):
         self.plug(follower_deg=(0, 0, 0, 0, 0, 0))
