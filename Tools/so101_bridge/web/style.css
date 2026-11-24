@@ -152,11 +152,12 @@ kbd { font: 600 10px var(--num); background: rgba(0,0,0,.2); padding: 3px 6px; l
 .tool.warn { color: var(--warn); }
 .tool.warn:hover { border-color: rgba(242,180,65,.6); background: rgba(242,180,65,.08); }
 .tool:disabled { opacity: .4; cursor: not-allowed; }
+.tool.primary:disabled { background: var(--glass-2); border-color: var(--stroke-2); color: var(--muted); opacity: 1; }   /* 꺼진 주 버튼은 회색 (눌러야 할 버튼처럼 안 보이게) */
 .tool.toggle input { display: none; }
 .tool-sep { margin: 6px 0 -2px 4px; color: var(--muted); font-size: 10px; letter-spacing: .5px; }
 .stage-title { position: absolute; top: var(--pad); right: 20px; text-align: right; z-index: 2; }
 .stage-left { position: absolute; top: var(--pad); left: var(--pad); z-index: 2; }
-.stage-left .angles { justify-items: start; margin-top: 8px; }
+.stage-left .angles { justify-items: stretch; margin-top: 8px; width: 236px; }
 .ctl { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
 .ctl .tool { min-width: 0; justify-content: center; }
 .ctl .tool.wide { grid-column: 1 / -1; padding: 12px; font-size: 14px; }
