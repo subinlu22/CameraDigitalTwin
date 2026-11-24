@@ -40,7 +40,7 @@ Unity를 설치하지 않아도 빌드한 `SO101_Simulator.exe` 하나로 실습
 | 1 | 실물 → Unity 미러링 (리더 팔 각도를 Unity 팔이 따라 함) | ✅ |
 | 2 | Unity → 실물 (Unity에서 조작·재생한 동작을 팔로워 팔이 따라 함, 안전장치 포함) | ✅ |
 | 3 | 뚜껑 집기 (Unity 안에서 집기 → 같은 자세 목록으로 실물 집기) | ✅ |
-| 4 | 학습 도구화 (연습 모드, 자세 저장·재생 UI, 렌더 룩 콘솔) | ✅ 일부 (빌드 exe 확인 전) |
+| 4 | 학습 도구화 (연습 모드, 자세 저장·재생 UI, 렌더 룩 콘솔) | ✅ (빌드 exe로 연습 모드·자세 저장·동작 녹화 확인) |
 
 ## 두 가지 버전
 
@@ -82,7 +82,7 @@ Unity를 설치하지 않아도 빌드한 `SO101_Simulator.exe` 하나로 실습
 | 화면 아래 버튼: 로봇 조종 패널 띄우기, 렌더 룩 콘솔 띄우기(F6), 벨트 방향 바꾸기 | ✅ |
 | 렌더 룩 콘솔 (따로 뜨는 창에서 조명·부위 재질을 골라 실시간 반영) | ✅ 에디터 확인 |
 | 카메라 검사 결과 → 같은 색·숫자 뚜껑을 벨트 위에 재현 | ✅ |
-| 빌드 exe 하나로 연습 모드 (실물 모드는 exe에서 확인 전) | ✅ 연습 모드 확인 |
+| 빌드 exe 하나로 연습 모드·자세 저장(껐다 켜도 남음)·동작 녹화 | ✅ exe 확인 (실물 모드는 편집기에서 확인한 같은 컨트롤 패널) |
 
 ## 환경 · 기술 스택
 
@@ -178,7 +178,13 @@ Unity를 설치하지 않아도 빌드한 `SO101_Simulator.exe` 하나로 실습
 |---|---|
 | 제품 스폰 시뮬레이션 및 이송 과정 | 적색 임계값 기반 비전 판정 검사 |
 
-- 로봇팔 미러링·실물 집기 영상: 정리 중
+**로봇팔** (이미지를 누르면 영상이 열립니다)
+
+| [![실물 집기](docs/images/demo/so101-real-pick.jpg)](https://subinlu22.github.io/assets/videos/so101-real-pick.mp4) | [![로봇 없이 연습](docs/images/demo/so101-practice.jpg)](https://subinlu22.github.io/assets/videos/so101-practice.mp4) |
+|---|---|
+| 실물 집기 — Unity에서 저장한 자세 그대로 흰 팔(팔로워)이 뚜껑을 집어 컨베이어에 올림 | 로봇 없이 연습 — 같은 자세 목록을 Unity 팔만으로 재생 (연습용 뚜껑) |
+| [![미러링](docs/images/demo/so101-demo.jpg)](https://subinlu22.github.io/assets/videos/so101-demo.mp4) | [![동작 녹화](docs/images/demo/so101-motion.jpg)](https://subinlu22.github.io/assets/videos/so101-motion.mp4) |
+| 미러링 — 리더 팔을 움직이면 Unity 팔·흰 팔이 같은 각도로 따라 움직임 | 동작 녹화 — 팔을 움직이며 녹화한 동작을 절반 속도로 다시 재생 |
 
 ---
 
