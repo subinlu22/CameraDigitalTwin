@@ -6,7 +6,7 @@
 
 <p align="center">
   <img src="docs/images/hq/thumb_ui.jpg" alt="학습 시뮬레이터 화면"><br>
-  <sub>고퀄 버전(HDRP 경로 추적) 렌더 + 시뮬레이터 패널 UI</sub>
+  <sub>포토리얼 버전(HDRP 경로 추적) 렌더 + 시뮬레이터 패널 UI</sub>
 </p>
 
 ## exe 하나로 실행
@@ -46,7 +46,7 @@ Unity를 설치하지 않아도 빌드한 `SO101_Simulator.exe` 하나로 실습
 
 렌더 품질이 원하는 만큼 나오지 않은 원인이 Built-in 렌더 파이프라인의 한계로 확인되어(아래 트러블슈팅), 용도별로 나눴습니다.
 
-| | 라이트 버전 (이 저장소 `main`) | 고퀄 버전 (HDRP 실험 복사본) |
+| | 리얼타임 버전 (이 저장소 `main`) | 포토리얼 버전 (HDRP 실험 복사본) |
 |---|---|---|
 | 용도 | 실습용 시뮬레이터 (실시간, 저사양 PC) | 포트폴리오 사진·데모 영상 |
 | 렌더 | Built-in Render Pipeline, 실시간 | HDRP + 경로 추적(Path Tracing) |
@@ -57,7 +57,7 @@ Unity를 설치하지 않아도 빌드한 `SO101_Simulator.exe` 하나로 실습
   <sub>같은 모델 비교 — Built-in / HDRP 실시간 / HDRP 경로 추적</sub>
 </p>
 
-## 스크린샷 (고퀄 버전)
+## 스크린샷 (포토리얼 버전)
 
 | | |
 |---|---|
@@ -88,7 +88,7 @@ Unity를 설치하지 않아도 빌드한 `SO101_Simulator.exe` 하나로 실습
 
 | 구분 | 내용 |
 |---|---|
-| 엔진 | Unity 6 (6000.3.11f1) — 라이트: Built-in RP / 고퀄: HDRP 17 + 경로 추적 |
+| 엔진 | Unity 6 (6000.3.11f1) — 리얼타임: Built-in RP / 포토리얼: HDRP 17 + 경로 추적 |
 | 언어 | C# (Unity), Python (리더 허브·로봇 브리지·컨트롤 패널·렌더 룩 콘솔) |
 | 로봇 | URDF Importer(`Packages`에 직접 포함) + ArticulationBody, 시리얼(pyserial) |
 | 모델링 | Maya, Substance Painter (컨베이어·카메라·링라이트·뚜껑 9종) |
