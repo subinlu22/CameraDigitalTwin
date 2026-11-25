@@ -180,6 +180,10 @@ Unity를 설치하지 않아도 빌드한 `SO101_Simulator.exe` 하나로 실습
 
 **로봇팔** (이미지를 누르면 영상이 열립니다)
 
+[![기능 소개 데모릴](docs/images/demo/so101-reel.jpg)](https://subinlu22.github.io/assets/videos/so101-reel.mp4)
+
+기능 소개 데모릴 (70초) — 관제 화면 → 관절 수동 제어 → 자동 자세(벨트 피해서 이동) → 자세 저장·순서대로 재생(Unity 연습 ↔ 실물) → 동작 녹화
+
 | [![실물 집기](docs/images/demo/so101-real-pick.jpg)](https://subinlu22.github.io/assets/videos/so101-real-pick.mp4) | [![로봇 없이 연습](docs/images/demo/so101-practice.jpg)](https://subinlu22.github.io/assets/videos/so101-practice.mp4) |
 |---|---|
 | 실물 집기 — Unity에서 저장한 자세 그대로 흰 팔(팔로워)이 뚜껑을 집어 컨베이어에 올림 | 로봇 없이 연습 — 같은 자세 목록을 Unity 팔만으로 재생 (연습용 뚜껑) |
